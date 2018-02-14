@@ -1,0 +1,30 @@
+Christian Möstl, IWF Graz, Austrian Academy of Sciences, January 2018.
+
+This is the 2nd version of the 3DCORE model for producing synthetic magnetic field observations of solar storms.
+
+The environment under which this was tested is Mac OS X High Sierra
+with ipython installed with the Python Anaconda package. 
+Apart from Anaconda, additional packages need to be installed:
+Sunpy http://sunpy.org
+Seaborn https://seaborn.pydata.org
+
+There is only a single code file, 3dcore_v2.py, which uses files in the directories "input_files", "DATACAT" and "ICMECAT". The output is placed in the directories "output_files_Earth_L1" and "output_files_MESSENGER".
+
+Whether results for Earth or MESSENGER are produced can be set after the import block in 3dcore_v2.py, by choosing the variables "inputfilename" and "outputdirectory" accordingly.
+
+To run 3DCORE, in ipython simply type "run 3dcore_v2.py" and the simulation produces the results as given in the Möstl et al. 2018 AGU Space Weather paper "Forward modeling of coronal mass ejection flux ropes in the inner heliosphere with 3DCORE".
+
+A fast computation can be achieved if the frames for each step are not saved - this is controlled by the first parameter in the input files: 
+3DCORE_init_July_2013_paper_Earth.txt
+3DCORE_init_July_2013_paper_MESSENGER.txt
+
+If frames are saved, an mp4 movie of the run is automatically produced.
+
+This code is distributed with an MIT license. This means:
+
+#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
+#INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR 
+#PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE 
+#FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
+#TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR 
+#OTHER DEALINGS IN THE SOFTWARE.
