@@ -1,0 +1,51 @@
+choose if figures are saved (slow computation, 1) or not (fast computation, 0):
+0
+
+in situ observing spacecraft, available: Earth, Venus, MESSENGER:
+Earth
+
+V0, initial CME speed in km/s: (SSE fit as proxy for COR)
+575
+R0, initial distance in solar radii:
+19
+T0str, initial time: (from HI SSE launch time)
+2013-07-09 20:24
+DBM gamma, x 1e-7:
+1.5
+DBM background wind w, km/s: 
+400
+background field strength at 1 AU, nT:
+5
+
+simulation start time:
+2013-07-09 22:00
+simulation duration,  days:
+7
+
+direction of CME and MFR parameters:
+longitude:
+-1
+latitude:
+-1 
+inclination:
+272
+handedness: +1 right handed, -1 left handed
+-1   
+tau, number of turns per AU:
+5  
+D1AU: choose from MESSENGER sim
+0.24
+B1AU: choose from MESSENGER sim
+12.0
+
+grid and time resolution:
+dpsi, deg:
+10 
+dphi, deg:
+10 
+dr, AU:
+0.01 
+dt, hours:
+2
+measurement_parameter, AU:
+0.05
