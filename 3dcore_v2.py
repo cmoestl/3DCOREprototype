@@ -1201,7 +1201,7 @@ ndays=10
 s=mdates.date2num(sunpy.time.parse_time(mdates.num2date(sim_time[0])))
 #take this starting date + 10 days for a smaller array for calculating Dst
 #"i" stands for interval
-ind=np.where(s==times1)[0]
+ind=np.where(s==times1)[0][0]
 
 bxmi=bxm[ind:ind+24*ndays]
 bymi=bym[ind:ind+24*ndays]

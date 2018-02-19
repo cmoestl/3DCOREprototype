@@ -12,7 +12,7 @@ Möstl et al. (2018), in press at AGU Space Weather, https://arxiv.org/abs/1710.
 ## Dependencies
 * The code is written in python, and I run it over the command line in MAC OS X (High Sierra) in ipython.
 
-* Install python anaconda (v3 or up, I use 3.5.2).
+* Install python anaconda v3 or up, I use 3.5.2. NumPy 1.12.1, SciPy 0.19.1, Matplotlib 2.0.2.
 
 https://www.anaconda.com/download/#macos
 
