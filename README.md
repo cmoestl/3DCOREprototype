@@ -7,10 +7,9 @@ It is distributed with an MIT license and has this DOI: https://doi.org/10.6084/
 If this research is used for peer-reviewed scientific publications, the paper below needs to cited and in any case, please also contact me either via twitter https://twitter.com/chrisoutofspace or at christian.moestl at oeaw.ac.at.
 
 This code was used for producing the figures and results in the publication:
-Möstl et al. (2018)
-Forward Modeling of Coronal Mass Ejection Flux Ropes in the Inner Heliosphere with 3DCORE
-in press at AGU Space Weather, https://arxiv.org/abs/1710.00587
-doi: 10.1002/2017SW001735
+Möstl et al. (2018), Forward Modeling of Coronal Mass Ejection Flux Ropes in the Inner Heliosphere with 3DCORE,
+in press at AGU Space Weather, https://arxiv.org/abs/1710.00587, doi: 10.1002/2017SW001735.
+
 Note that there has been a change in matplotlib from the publication to the current code version, so the 
 3DCORE model volume is now plotted with ax.scatter instead of the model surface with ax.wireframe as in the paper.
 
@@ -38,14 +37,14 @@ https://seaborn.pydata.org/installing.html
     
 
 ## Running the code
-* Download the repository, start an OS X command line and go to the "3DCORE_v2_public" directory
+* Download the repository, start an OS X command line and go to the "3DCORE" directory
 * Start ipython and run the only code file:
 
       $ ipython
       
       $ run 3dcore_v2.py
   
-* After the packages are imported, the "inputfilename" and "outputdirectory" are specified in the code, and can be changed there.
+* In the source code, after the packages are imported, the "inputfilename" and "outputdirectory" are specified, and should be changed there.
 
 
 
