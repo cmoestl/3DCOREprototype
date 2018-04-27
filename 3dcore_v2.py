@@ -667,10 +667,9 @@ for p in range(0,number_of_timesteps,1):
  # plot solar equatorial plane
  xe = np.linspace(-1.5, 1.5, 4)
  ye = np.linspace(-1.5, 1.5, 4)
- zecl=np.zeros(np.size(xe))
+ zecl=np.zeros([np.size(xe),np.size(ye)])
  xecl,yecl = np.meshgrid(xe, ye)
  ax.plot_wireframe(xecl,yecl,zecl,color='g', linestyle='dashed',lw=0.5, zorder=0.5)
-
 
  #view
  #ax.view_init(25,-50+p/10.)
@@ -828,10 +827,11 @@ for p in range(0,number_of_timesteps,1):
  #light = LightSource(90, 20)
  #illuminated_surface = light.shade(z, cmap=cm.coolwarm)
 
- ax.plot_wireframe(x,y,z,color='coral',zorder=3, lw=3)#
+ #**this does not work in the new matplotlib version 2.2.2
+ #ax.plot_wireframe(x,y,z,color='coral',zorder=3, lw=3)#
  
  #plot grid points inside as scatter works
- #ax.scatter(xv,yv,zv,color='b')
+ ax.scatter(xv,yv,zv,color='coral')
   
  #does not work -need to make psi and phi for all x, y, z
  #tritor=matplotlib.tri.Triangulation(phiall,psiall)
@@ -1218,7 +1218,7 @@ print( 'plot observed and synthetic magnetic field components B and speed V')
 #plot controls from seaborn
 sns.set_context("talk")     
 sns.set_style("darkgrid")  
-
+sns.set_style("ticks")  
 
 
 
@@ -1488,7 +1488,6 @@ if save_figures > 0:
   #first convert all convert to jpg
   os.system(os.getcwd()+'/ffmpeg -i '+outputdirectory+'/movie/B_poc_%04d.png '+outputdirectory+'/movie/B_poc_%04d.jpg')
   os.system(os.getcwd()+'/ffmpeg -r 20 -i '+outputdirectory+'/movie/B_poc_%04d.jpg -b 5000k -r 20 '+outputdirectory+'/3DCORE_movie_paper1.mp4 -y')
-
 
 
 ############ end of program
