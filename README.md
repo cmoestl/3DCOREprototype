@@ -1,6 +1,8 @@
 # 3DCORE
 
-This code is concerned with data interpretation and prediction for space weather research. It is a method for forward modeling of solar storm magnetic flux ropes, called 3-Dimensional Coronal Rope Ejection (3DCORE). The code is able to produce synthetic in situ observations of the magnetic cores of solar coronal mass ejections sweeping over planets and spacecraft. Near Earth, these data are taken currently by the Wind, ACE and DSCOVR spacecraft. Other suitable spacecraft making these kind of observations carrying magnetometers in the solar wind were MESSENGER, Venus Express, MAVEN, and even Helios, and in the future this will be done by Parker Solar Probe, Solar Orbiter and possibly interplanetary CubeSats.
+<a href="http://ascl.net/1805.005"><img src="https://img.shields.io/badge/ascl-1805.005-blue.svg?colorB=262255" alt="ascl:1805.005" /></a>
+
+This code is concerned with data interpretation and prediction for space weather research. It is a method for forward modeling of solar storm magnetic flux ropes, called 3-Dimensional Coronal Rope Ejection (3DCORE). The code is able to produce synthetic in situ observations of the magnetic cores of solar coronal mass ejections sweeping over planets and spacecraft. Near Earth, these data are taken currently by the Wind, ACE and DSCOVR spacecraft. Other suitable spacecraft making these kind of observations carrying magnetometers in the solar wind were MESSENGER, Venus Express, MAVEN, and Helios, and in the future observatories include the Parker Solar Probe, Solar Orbiter, BepiColombo and possibly interplanetary CubeSats.
 
 It is distributed with an MIT license and has this DOI: https://doi.org/10.6084/m9.figshare.5450341
 
@@ -12,8 +14,9 @@ in press at AGU Space Weather, https://arxiv.org/abs/1710.00587, doi: 10.1002/20
 
 Note that there has been a change in matplotlib from the publication to the current code version, so the 
 3DCORE model volume is now plotted with ax.scatter instead of the model surface with ax.wireframe as in the paper.
+This version on github will be updated as we progress, the code on figshare will only be changed for major new releases.
 
-Last update: 27 April 2018.
+Last update: 22 May 2018.
 
 ## Dependencies
 * The code is written in python, and I run it over the command line in MAC OS X (High Sierra) in ipython.
@@ -22,10 +25,12 @@ Last update: 27 April 2018.
 
 https://www.anaconda.com/download/#macos
 
-* Add the packages sunpy (v0.8.5) and seaborn (v 0.8.1). 
+* Add the packages astropy (3.0.2), sunpy (0.8.5) and seaborn (0.8.1). 
 
 http://docs.sunpy.org/en/stable/guide/installation/index.html
 
+    $ conda install astropy
+    
     $ conda config --add channels conda-forge
      
     $ conda install sunpy
