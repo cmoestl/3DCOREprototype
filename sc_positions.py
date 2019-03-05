@@ -4,7 +4,7 @@
 #twitter @chrisoutofspace, https://github.com/cmoestl
 #started December 2018
 
-#needs python > 3.6 with sunpy, heliopy, spiceypy, cdflib, seaborn
+#needs python 3.6 with sunpy, heliopy, spiceypy, cdflib, seaborn
 
 ## MIT LICENSE
 ## Copyright 2018, Christian Moestl 
@@ -22,9 +22,6 @@
 ## HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF 
 ## CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
 ## OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-
 
 
 
@@ -57,6 +54,75 @@ from datetime import datetime, timedelta
 #warnings.filterwarnings('ignore')
 plt.close('all')
 
+
+
+def sphere2cart(r, phi, theta):
+    x = r*np.cos(theta)*np.cos(phi)
+    y = r*np.cos(theta)*np.sin(phi)
+    z = r*np.sin(theta)
+    return (x, y, z) 
+    
+def cart2sphere(x,y,z):
+    r = np.sqrt(x**2+ y**2 + z**2)            # r
+    theta = np.arctan2(z,np.sqrt(x**2+ y**2))     # theta
+    phi = np.arctan2(y,x)                        # phi
+    return (r, theta, phi)
+
+def getcat(filename):  
+  print( 'reading positions in '+filename)
+  pos=scipy.io.readsav(filename, verbose='true')  
+  print( 'done reading positions')
+  return pos 
+
+def cart2pol(x, y):
+    rho = np.sqrt(x**2 + y**2)
+    phi = np.arctan2(y, x)
+    return(rho, phi)
+ 
+def time_to_num_cat(time_in):  
+
+  #for time conversion from catalogue .sav to numerical time
+  #this for 1-minute data or lower time resolution
+
+  #for all catalogues
+  #time_in is the time in format: 2007-11-17T07:20:00 or 2007-11-17T07:20Z
+  #for times help see: 
+  #http://docs.sunpy.org/en/latest/guide/time.html
+  #http://matplotlib.org/examples/pylab_examples/date_demo2.html
+  
+  j=0
+  #time_str=np.empty(np.size(time_in),dtype='S19')
+  time_str= ['' for x in range(len(time_in))]
+  #=np.chararray(np.size(time_in),itemsize=19)
+  time_num=np.zeros(np.size(time_in))
+
+  for i in time_in:
+   #convert from bytes (output of scipy.readsav) to string
+   time_str[j]=time_in[j][0:16].decode()+':00'
+   year=int(time_str[j][0:4])
+   time_str[j]
+   #convert time to sunpy friendly time and to matplotlibdatetime
+   #only for valid times so 9999 in year is not converted
+   #pdb.set_trace()
+   if year < 2100:
+    	  time_num[j]=mdates.date2num(sunpy.time.parse_time(time_str[j]))
+   j=j+1  
+   #the date format in matplotlib is e.g. 735202.67569444
+   #this is time in days since 0001-01-01 UTC, plus 1.
+   
+   #return time_num which is already an array and convert the list of strings to an array
+  return time_num, np.array(time_str)
+
+
+
+
+##################################################### MAIN ###############################
+
+
+#get positions old style:
+pos=getcat('DATACAT/positions_2007_2023_HEEQ_6hours.sav')
+pos_time_num=time_to_num_cat(pos.time)[0]
+
 #https://heliopy.readthedocs.io/en/stable/api/heliopy.spice.Trajectory.html#heliopy.spice.Trajectory.generate_positions
 
 #load kernels if not here
@@ -66,49 +132,59 @@ spicedata.get_kernel('planet_trajectories')
 #Solar orbiter 'solo_2020'
 #for PSP NAIF CODE is -96 (search for solar probe plus)
 #-144        'SOLAR ORBITER'
-
 #Earth 399
+
+
+
+
+############ PSP
 
 spice.furnish(spicedata.get_kernel('psp'))
 psp=spice.Trajectory('-96')
 
 starttime =datetime(2018, 10, 1)
 endtime = datetime(2025, 1, 1)
-times = []
+psp_time = []
 while starttime < endtime:
-    times.append(starttime)
+    psp_time.append(starttime)
     starttime += timedelta(days=1)
-
+    
+psp_time_num=mdates.date2num(psp_time)     
 #frames https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/frames.html  Appendix. ``Built in'' Inertial Reference Frames
-
-psp.generate_positions(times,'Sun','ECLIPJ2000')
+psp.generate_positions(psp_time,'Sun','ECLIPJ2000')
 #pspe.generate_positions(time2,'Sun','ECLIPJ2000')
-
 psp.change_units(astropy.units.AU)  
-
-
 print('PSP')
-
 print(psp.r)
 print(psp.x)
 print(psp.y)
 print(psp.z)  
 
 
-plt.figure(1)
-plt.plot_date(times,psp.r,'-')
-plt.plot_date(times,psp.x,'-')
-plt.plot_date(times,psp.y,'-')
-plt.plot_date(times,psp.z,'-')
+[psp_r, psp_theta, psp_phi]=cart2sphere(psp.x,psp.y,psp.z)
 
 
+plt.figure(1, figsize=(12,9))
+plt.plot_date(psp_time,psp_r,'-', label='R')
+
+plt.plot_date(psp_time,psp_theta,'-',label='theta')
+
+plt.plot_date(psp_time,psp_phi,'-',label='phi')
+
+
+#plt.plot_date(psp_time,psp.x,'-',label='X')
+#plt.plot_date(psp_time,psp.y,'-',label='Y')
+#plt.plot_date(psp_time,psp.z,'-',label='Z')
+plt.legend()
+
+plt.title('PSP position ECLIPJ2000')
+plt.ylabel('AU')
+
+
+################ ********** TO DO CHANGE FROM ECLIPJ2000 to HEEQ
 
 print()
-
 print()
-
-
-
 
 
 
@@ -118,24 +194,18 @@ print()
 
 starttime =datetime(2018, 10, 21)
 endtime = datetime(2025, 1, 1)
-times2 = []
+bepi_time = []
 while starttime < endtime:
-    times2.append(starttime)
+    bepi_time.append(starttime)
     starttime += timedelta(days=1)
 
-
-
 #    -68         'BEPICOLOMBO MMO'
-
 print('Bepi')
-
 
 spice.furnish('/Users/chris/heliopy/data/spice/bc_mpo_fcp_00040_20181020_20251102_v01.bsp')
 bepi=spice.Trajectory('BEPICOLOMBO MPO')
 
-
-
-bepi.generate_positions(times2,'Sun','J2000')
+bepi.generate_positions(bepi_time,'Sun','J2000')
 #bepie.generate_positions(time2,'Sun','ECLIPJ2000')
 
 bepi.change_units(astropy.units.AU)  
@@ -146,10 +216,16 @@ print(bepi.y)
 print(bepi.z)  
 
 plt.figure(2)
-plt.plot_date(times2,bepi.r,'-')
-plt.plot_date(times2,bepi.x,'-')
-plt.plot_date(times2,bepi.y,'-')
-plt.plot_date(times2,bepi.z,'-')
+plt.plot_date(bepi_time,bepi.r,'-')
+plt.plot_date(bepi_time,bepi.x,'-')
+plt.plot_date(bepi_time,bepi.y,'-')
+plt.plot_date(bepi_time,bepi.z,'-')
+
+
+
+[bepi_r, bepi_theta, bepi_phi]=cart2sphere(bepi.x,bepi.y,bepi.z)
+
+
 
 ###################Solar Orbiter
 
@@ -164,26 +240,103 @@ orbiter = spice.Trajectory('Solar Orbiter')
 # Generate a time for every day between starttime and endtime
 starttime = datetime(2020, 3, 1)
 endtime = datetime(2025, 1, 1)
-times3 = []
+solo_time = []
 while starttime < endtime:
-    times3.append(starttime)
+    solo_time.append(starttime)
     starttime += timedelta(days=1)
 
 ###############################################################################
 # Generate positions
-orbiter.generate_positions(times3, 'Sun', 'ECLIPJ2000')
+orbiter.generate_positions(solo_time, 'Sun', 'ECLIPJ2000')
 orbiter.change_units(astropy.units.AU)
 
-
-
-
 plt.figure(3, figsize=(12,8))
-
-plt.plot_date(times,psp.r,'-',label='PSP')
-plt.plot_date(times2,bepi.r,'-',label='Bepi Colombo')
-plt.plot_date(times3,orbiter.r,'-',label='Solar Orbiter')
+plt.plot_date(psp_time,psp.r,'-',label='PSP')
+plt.plot_date(bepi_time,bepi.r,'-',label='Bepi Colombo')
+plt.plot_date(solo_time,orbiter.r,'-',label='Solar Orbiter')
 plt.legend()
 plt.title('Heliocentric distance of heliospheric observatories')
 plt.ylabel('AU')
 plt.savefig('bepi_psp_solo.png')
+
+
+
+######################## Animation
+
+
+frame_time_num=mdates.date2num(sunpy.time.parse_time('2020-Nov-3 18:00:00'))
+
+k=0
+
+plt.figure(4, figsize=(12,9), dpi=100, facecolor='w', edgecolor='w')
+
+ax = plt.subplot(111,projection='polar')
+
+dct=frame_time_num+k-pos_time_num
+#get index of closest to 0, use this for position
+timeind=np.argmin(abs(dct))
+
+
+dct=frame_time_num+k-psp_time_num
+#get index of closest to 0, use this for position
+psp_timeind=np.argmin(abs(dct))
+
+frame_time_str=str(mdates.num2date(frame_time_num+k))
+print( 'current frame_time_num', frame_time_str)
+
+#index 1 is longitude, 0 is rdist
+symsize=100
+ax.scatter(pos.venus[1,timeind], pos.venus[0,timeind], s=symsize, c='orange', alpha=1, lw=0, zorder=3)
+ax.scatter(pos.mercury[1,timeind], pos.mercury[0,timeind], s=symsize, c='dimgrey', alpha=1,lw=0, zorder=3)
+ax.scatter(pos.sta[1,timeind], pos.sta[0,timeind], s=symsize, c='red', alpha=1,marker='s',lw=0,zorder=3)
+ax.scatter(pos.earth[1,timeind], pos.earth[0,timeind], s=symsize, c='mediumseagreen', alpha=1,lw=0,zorder=3)
+ax.scatter(pos.mars[1,timeind], pos.mars[0,timeind], s=symsize, c='orangered', alpha=1,lw=0,zorder=3)
+ax.scatter(psp_phi[psp_timeind], psp_r[psp_timeind], s=symsize, c='black', marker='s', alpha=1,lw=0,zorder=3)
+ 
+
+ 
+plt.suptitle('Spacecraft trajectories')	
+ 
+#Sun
+ax.scatter(0,0,s=100,c='yellow',alpha=0.8, edgecolors='yellow')
+plt.figtext(0.51,0.5,'Sun', fontsize=10, ha='center')
+
+#Earth
+plt.figtext(0.51,0.28,'Earth', fontsize=10, ha='center')
+
+#units
+plt.figtext(0.525,0.0735,'HEEQ longitude', fontsize=10, ha='left')
+#	plt.figtext(0.64,0.213,'AU', fontsize=10, ha='center')
+
+#----------------- legend
+
+plt.figtext(0.1-0.02,0.02,'Mercury', color='dimgrey', ha='center')
+plt.figtext(0.2-0.02	,0.02,'Venus', color='orange', ha='center')
+plt.figtext(0.3-0.02,0.02,'Earth', color='mediumseagreen', ha='center')
+plt.figtext(0.4-0.02,0.02,'Mars', color='orangered', ha='center')
+plt.figtext(0.5-0.02,0.02,'STEREO-A', color='red', ha='center')
+plt.figtext(0.8-0.02,0.02,'Parker Solar Probe', color='black', ha='center')
+
+ 
+#set axes
+plt.thetagrids(range(0,360,45),(u'0\u00b0',u'45\u00b0',u'90\u00b0',u'135\u00b0',u'+/- 180\u00b0',u'- 135\u00b0',u'- 90\u00b0',u'- 45\u00b0'), fmt='%d')
+ax.set_theta_zero_location('S')
+plt.rgrids((0.25,0.5,0.75, 1.0,1.25, 1.5, 1.75, 2.0),('0.25','0.5','0.75','1.0','1.25','1.5','1.75','2.0 AU'))
+ax.set_ylim(0, 1.5)
+
+#plot text for date extra so it does not move 
+#year
+plt.figtext(0.47,0.85,frame_time_str[0:4], fontsize=13, ha='center')
+#month
+plt.figtext(0.51,0.85,frame_time_str[5:7], fontsize=13, ha='center')
+#day
+plt.figtext(0.54,0.85,frame_time_str[8:10], fontsize=13, ha='center')
+#hours
+plt.figtext(0.57,0.85,frame_time_str[11:13], fontsize=13, ha='center')
+
+
+
+
+
+
 
