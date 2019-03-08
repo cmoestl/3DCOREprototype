@@ -137,13 +137,15 @@ spicedata.get_kernel('planet_trajectories')
 
 
 
+
+
 ############ PSP
 
 spice.furnish(spicedata.get_kernel('psp'))
 psp=spice.Trajectory('-96')
 
-starttime =datetime(2018, 10, 1)
-endtime = datetime(2025, 1, 1)
+starttime =datetime(2018, 10, 21)
+endtime = datetime(2025, 8, 1)
 psp_time = []
 while starttime < endtime:
     psp_time.append(starttime)
@@ -181,10 +183,55 @@ plt.title('PSP position ECLIPJ2000')
 plt.ylabel('AU')
 
 
-################ ********** TO DO CHANGE FROM ECLIPJ2000 to HEEQ
+################## Earth position in ECLIJ2000
 
 print()
 print()
+earth=spice.Trajectory('399')  
+starttime =datetime(2018, 10, 21)
+endtime = datetime(2025, 8, 1)
+earth_time = []
+while starttime < endtime:
+    earth_time.append(starttime)
+    starttime += timedelta(days=1)
+    
+earth_time_num=mdates.date2num(earth_time)     
+#frames https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/frames.html  Appendix. ``Built in'' Inertial Reference Frames
+earth.generate_positions(earth_time,'Sun','ECLIPJ2000')
+earth.change_units(astropy.units.AU)  
+print('Earth')
+print(earth.r)
+print(earth.x)
+print(earth.y)
+print(earth.z)  #zero anyway
+
+print()
+print()
+
+
+
+################ CHANGE PSP coordinates FROM ECLIPJ2000 to HEE with Earth position
+pspx_hee=np.zeros(len(earth_time))
+pspy_hee=np.zeros(len(earth_time))
+pspz_hee=np.zeros(len(earth_time))
+
+for i in np.arange(np.size(earth_time)):
+   ex=[np.array(earth.x[i]),np.array(earth.y[i]),0]    
+   ez=np.array([0,0,1]) 
+   ey=np.cross(ez,ex)  
+   
+   pspvec=[np.array(psp.x[i]),np.array(psp.y[i]),np.array(psp.z[i])]  
+   pspx_hee[i]=np.dot(pspvec,ex) 
+   pspy_hee[i]=np.dot(pspvec,ey) 
+   pspz_hee[i]=np.dot(pspvec,ez) 
+   
+print('PSP HEE') 
+print(pspx_hee)
+print(pspy_hee)
+print(pspz_hee)
+[psp_r_hee, psp_theta_hee, psp_phi_hee]=cart2sphere(pspx_hee,pspy_hee,pspz_hee)
+
+
 
 
 
@@ -193,7 +240,7 @@ print()
 
 
 starttime =datetime(2018, 10, 21)
-endtime = datetime(2025, 1, 1)
+endtime = datetime(2025, 8, 1)
 bepi_time = []
 while starttime < endtime:
     bepi_time.append(starttime)
@@ -203,6 +250,7 @@ while starttime < endtime:
 print('Bepi')
 
 spice.furnish('/Users/chris/heliopy/data/spice/bc_mpo_fcp_00040_20181020_20251102_v01.bsp')
+
 bepi=spice.Trajectory('BEPICOLOMBO MPO')
 
 bepi.generate_positions(bepi_time,'Sun','J2000')
@@ -226,6 +274,31 @@ plt.plot_date(bepi_time,bepi.z,'-')
 [bepi_r, bepi_theta, bepi_phi]=cart2sphere(bepi.x,bepi.y,bepi.z)
 
 
+################ CHANGE bepi coordinates FROM ECLIPJ2000 to HEE with Earth position
+bepix_hee=np.zeros(len(earth_time))
+bepiy_hee=np.zeros(len(earth_time))
+bepiz_hee=np.zeros(len(earth_time))
+
+for i in np.arange(np.size(earth_time)):
+   ex=[np.array(earth.x[i]),np.array(earth.y[i]),0]    
+   ez=np.array([0,0,1]) 
+   ey=np.cross(ez,ex)  
+   
+   bepivec=[np.array(bepi.x[i]),np.array(bepi.y[i]),np.array(bepi.z[i])]  
+   bepix_hee[i]=np.dot(bepivec,ex) 
+   bepiy_hee[i]=np.dot(bepivec,ey) 
+   bepiz_hee[i]=np.dot(bepivec,ez) 
+   
+print('bepi HEE') 
+print(bepix_hee)
+print(bepiy_hee)
+print(bepiz_hee)
+[bepi_r_hee, bepi_theta_hee, bepi_phi_hee]=cart2sphere(bepix_hee,bepiy_hee,bepiz_hee)
+
+
+
+
+
 
 ###################Solar Orbiter
 
@@ -239,7 +312,7 @@ orbiter = spice.Trajectory('Solar Orbiter')
 ###############################################################################
 # Generate a time for every day between starttime and endtime
 starttime = datetime(2020, 3, 1)
-endtime = datetime(2025, 1, 1)
+endtime = datetime(2026, 1, 1)
 solo_time = []
 while starttime < endtime:
     solo_time.append(starttime)
@@ -264,9 +337,19 @@ plt.savefig('bepi_psp_solo.png')
 ######################## Animation
 
 
-frame_time_num=mdates.date2num(sunpy.time.parse_time('2020-Nov-3 18:00:00'))
+frame_time_num=mdates.date2num(sunpy.time.parse_time('2020-Jan-25 18:00:00'))
+
+frame_time_num=mdates.date2num(sunpy.time.parse_time('2021-Apr-29 00:00:00'))
+
+#frame_time_num=mdates.date2num(sunpy.time.parse_time('2020-Jun-03 00:00:00'))
+
+#frame_time_num=mdates.date2num(sunpy.time.parse_time('2024-Dec-25 18:00:00'))
+
 
 k=0
+
+sns.set_context('talk')
+sns.set_style('darkgrid')
 
 plt.figure(4, figsize=(12,9), dpi=100, facecolor='w', edgecolor='w')
 
@@ -291,7 +374,9 @@ ax.scatter(pos.mercury[1,timeind], pos.mercury[0,timeind], s=symsize, c='dimgrey
 ax.scatter(pos.sta[1,timeind], pos.sta[0,timeind], s=symsize, c='red', alpha=1,marker='s',lw=0,zorder=3)
 ax.scatter(pos.earth[1,timeind], pos.earth[0,timeind], s=symsize, c='mediumseagreen', alpha=1,lw=0,zorder=3)
 ax.scatter(pos.mars[1,timeind], pos.mars[0,timeind], s=symsize, c='orangered', alpha=1,lw=0,zorder=3)
-ax.scatter(psp_phi[psp_timeind], psp_r[psp_timeind], s=symsize, c='black', marker='s', alpha=1,lw=0,zorder=3)
+#ax.scatter(psp_phi[psp_timeind], psp_r[psp_timeind], s=symsize, c='black', marker='s', alpha=1,lw=0,zorder=3)
+ax.scatter(psp_phi_hee[psp_timeind], psp_r_hee[psp_timeind], s=symsize, c='black', marker='s', alpha=1,lw=0,zorder=3)
+ax.scatter(bepi_phi_hee[psp_timeind], bepi_r_hee[psp_timeind], s=symsize, c='blue', marker='s', alpha=1,lw=0,zorder=3)
  
 
  
