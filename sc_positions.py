@@ -26,12 +26,12 @@
 
 
 
+#TO DO: STEREO A Kernels, Mercury and Venus in HEE 
+#HEEQ
+#http://www.mssl.ucl.ac.uk/grid/iau/extra/local_copy/SP_coords/helitran.htm
+#später auch 3d plot mit scatter3d und evt black background? faded trajectories wäre auch gut - 20 tage 
 
 
-
-
-#TO DO: 3d plotting for using latitude correctly
-#positions sta, mercury, venus with python spice
 
 
 ##########################################################################################
@@ -153,7 +153,7 @@ res_in_days=0.5
 #res_in_days=1/24.
 
 #1min
-res_in_days=1/3600.
+#res_in_days=1/1440.
 
 if res_in_days < 0.2: high_res_mode=True
 else:high_res_mode=False
@@ -166,8 +166,8 @@ if high_res_mode:
 
 
 #get positions old style for comparison from IDL SPICE:
-pos=getcat('DATACAT/positions_2007_2023_HEEQ_6hours.sav')
-pos_time_num=time_to_num_cat(pos.time)[0]
+#pos=getcat('DATACAT/positions_2007_2023_HEEQ_6hours.sav')
+#pos_time_num=time_to_num_cat(pos.time)[0]
 
 #https://heliopy.readthedocs.io/en/stable/api/heliopy.spice.Trajectory.html#heliopy.spice.Trajectory.generate_positions
 
@@ -175,8 +175,7 @@ pos_time_num=time_to_num_cat(pos.time)[0]
 psp_kernel=spicedata.get_kernel('psp')
 solo_kernel=spicedata.get_kernel('solo_2020')
 planet_kernel=spicedata.get_kernel('planet_trajectories')
-#sta_kernel=spicedata.get_kernel('stereo_a')
-#bepi colombo is loaded directly from file
+#sta, bepi colombo is loaded directly from file
 
 #for PSP NAIF CODE is -96 (search for solar probe plus)
 #-144        'SOLAR ORBITER'
@@ -229,6 +228,8 @@ print(psp.z)
 
 
 ################## Earth position in ECLIJ2000
+
+
 
 print()
 print()
@@ -502,16 +503,223 @@ plt.savefig('bepi_psp_solo_longitude.png')
 
 
 
+
+
+
+
+
+
+
+
+############# Earth for Mercury, Venus, STA
+
+
+
+
+print()
+print()
+earth=spice.Trajectory('399')  
+starttime =datetime(2018, 1, 1)
+endtime = datetime(2028, 12, 31)
+earth_time = []
+while starttime < endtime:
+    earth_time.append(starttime)
+    starttime += timedelta(days=res_in_days)
+    
+earth_time_num=mdates.date2num(earth_time)     
+#frames https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/frames.html  Appendix. ``Built in'' Inertial Reference Frames
+earth.generate_positions(earth_time,'Sun','ECLIPJ2000')
+earth.change_units(astropy.units.AU)  
+print('Earth')
+print(earth.r)
+print(earth.x)
+print(earth.y)
+print(earth.z)  #is zero anyway
+
+print()
+print()
+
+
+
+
+
+
+
+
+
+################ mercury
+
+merc_time = []
+starttime =datetime(2018, 1, 1)
+endtime = datetime(2028, 12, 31)
+while starttime < endtime:
+    merc_time.append(starttime)
+    starttime += timedelta(days=res_in_days)
+
+
+merc_time_num=mdates.date2num(merc_time) 
+print('Mercury')
+merc=spice.Trajectory('199')  
+merc.generate_positions(earth_time,'Sun','ECLIPJ2000')  
+merc.change_units(astropy.units.AU)  
+
+mercx_hee=np.zeros(len(earth_time))
+mercy_hee=np.zeros(len(earth_time))
+mercz_hee=np.zeros(len(earth_time))
+
+for i in np.arange(np.size(earth_time)):
+   ex=[np.array(earth.x[i]),np.array(earth.y[i]),0]    
+   ez=np.array([0,0,1]) 
+   ey=np.cross(ez,ex)  
+   
+   mercvec=[np.array(merc.x[i]),np.array(merc.y[i]),np.array(merc.z[i])]  
+   mercx_hee[i]=np.dot(mercvec,ex) 
+   mercy_hee[i]=np.dot(mercvec,ey) 
+   mercz_hee[i]=np.dot(mercvec,ez) 
+   
+print('merc HEE') 
+print(mercx_hee)
+print(mercy_hee)
+print(mercz_hee)
+[merc_r_hee, merc_lat_hee, merc_lon_hee]=cart2sphere(mercx_hee,mercy_hee,mercz_hee)
+
+
+
+
+
+
+
+
+################# venus
+
+
+ven_time = []
+starttime =datetime(2018, 1, 1)
+endtime = datetime(2028, 12, 31)
+while starttime < endtime:
+    ven_time.append(starttime)
+    starttime += timedelta(days=res_in_days)
+    
+
+ven_time_num=mdates.date2num(ven_time) 
+print('venury')
+ven=spice.Trajectory('299')  
+ven.generate_positions(earth_time,'Sun','ECLIPJ2000')  
+ven.change_units(astropy.units.AU)  
+
+venx_hee=np.zeros(len(earth_time))
+veny_hee=np.zeros(len(earth_time))
+venz_hee=np.zeros(len(earth_time))
+
+for i in np.arange(np.size(earth_time)):
+   ex=[np.array(earth.x[i]),np.array(earth.y[i]),0]    
+   ez=np.array([0,0,1]) 
+   ey=np.cross(ez,ex)  
+   
+   venvec=[np.array(ven.x[i]),np.array(ven.y[i]),np.array(ven.z[i])]  
+   venx_hee[i]=np.dot(venvec,ex) 
+   veny_hee[i]=np.dot(venvec,ey) 
+   venz_hee[i]=np.dot(venvec,ez) 
+   
+print('ven HEE') 
+print(venx_hee)
+print(veny_hee)
+print(venz_hee)
+[ven_r_hee, ven_lat_hee, ven_lon_hee]=cart2sphere(venx_hee,veny_hee,venz_hee)
+
+
+
+
+
+#############stereo-A
+#https://docs.heliopy.org/en/stable/data/spice.html
+
+
+
+sta_time = []
+starttime =datetime(2018, 1, 1)
+endtime = datetime(2028, 12, 31)
+while starttime < endtime:
+    sta_time.append(starttime)
+    starttime += timedelta(days=res_in_days)
+
+sta_time_num=mdates.date2num(sta_time) 
+print('STA')
+spice.furnish('ahead_2017_061_5295day_predict.epm.bsp')
+sta=spice.Trajectory('-234')  
+sta.generate_positions(earth_time,'Sun','ECLIPJ2000')  
+sta.change_units(astropy.units.AU)  
+
+#[bepi_r, bepi_theta, bepi_phi]=cart2sphere(bepi.x,bepi.y,bepi.z)
+
+
+stax_hee=np.zeros(len(earth_time))
+stay_hee=np.zeros(len(earth_time))
+staz_hee=np.zeros(len(earth_time))
+
+for i in np.arange(np.size(earth_time)):
+   ex=[np.array(earth.x[i]),np.array(earth.y[i]),0]    
+   ez=np.array([0,0,1]) 
+   ey=np.cross(ez,ex)  
+   
+   stavec=[np.array(sta.x[i]),np.array(sta.y[i]),np.array(sta.z[i])]  
+   stax_hee[i]=np.dot(stavec,ex) 
+   stay_hee[i]=np.dot(stavec,ey) 
+   staz_hee[i]=np.dot(stavec,ez) 
+   
+print('sta HEE') 
+print(stax_hee)
+print(stay_hee)
+print(staz_hee)
+[sta_r_hee, sta_lat_hee, sta_lon_hee]=cart2sphere(stax_hee,stay_hee,staz_hee)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+################ CHANGE bepi coordinates FROM ECLIPJ2000 to HEE with Earth position
+
+
+
+
+
+
+
+
+
+end=time.time()
+print( 'generate position in HEE took time in seconds:', (end-start) )
+
+
+
+
+
+
+
 #save hee
 if high_res_mode:
  pickle.dump([psp_time,psp_time_num,psp_r_hee,psp_lon_hee,psp_lat_hee,bepi_time,bepi_time_num,bepi_r_hee,bepi_lon_hee,bepi_lat_hee,solo_time,solo_time_num,solo_r_hee,solo_lon_hee,solo_lat_hee], open( "psp_solo_bepi_high_res_HEE_1min.p", "wb" ) )
  sys.exit()
+else:
+ pickle.dump([psp_time,psp_time_num,psp_r_hee,psp_lon_hee,psp_lat_hee,bepi_time,bepi_time_num,bepi_r_hee,bepi_lon_hee,bepi_lat_hee,solo_time,solo_time_num,solo_r_hee,solo_lon_hee,solo_lat_hee], open( "psp_solo_bepi_low_res_HEE_12hours.p", "wb" ) )
+
+ 
 
 #load
-#psp_time,psp_time_num,psp_r_hee,psp_lon_hee,psp_lat_hee,bepi_time,bepi_time_num,bepi_r_hee,bepi_lon_hee,bepi_lat_hee,solo_time,solo_time_num,solo_r_hee,solo_lon_hee,solo_lat_hee]==pickle.load( open( "psp_solo_bepi_high_res_HEE.p", "rb" ) )
+#[psp_time,psp_time_num,psp_r_hee,psp_lon_hee,psp_lat_hee,bepi_time,bepi_time_num,bepi_r_hee,bepi_lon_hee,bepi_lat_hee,solo_time,solo_time_num,solo_r_hee,solo_lon_hee,solo_lat_hee]==pickle.load( open( "psp_solo_bepi_high_res_HEE_1min.p", "rb" ) )
 
-end=time.time()
-print( 'generate position in HEE took time in seconds:', (end-start) )
 
 
 
@@ -526,12 +734,9 @@ print()
 
 print('make animation')
 
-
-#**************** in 3D plotten und von oben anschauen wg latitude!!
-
 #from psp start
-frame_time_num=mdates.date2num(sunpy.time.parse_time('2018-Aug-13 00:00:00'))
-kend=365*2*7
+frame_time_num=mdates.date2num(sunpy.time.parse_time('2018-Aug-1 00:00:00'))
+kend=int(365/res_in_days*7)
 
 #frame_time_num=mdates.date2num(sunpy.time.parse_time('2021-Apr-29 00:00:00'))
 #frame_time_num=mdates.date2num(sunpy.time.parse_time('2020-Jun-03 00:00:00'))
@@ -569,9 +774,9 @@ for k in np.arange(0,kend):
  plt.suptitle('Spacecraft trajectories')	
 
 
- dct=frame_time_num+k*res_in_days-pos_time_num
+ #dct=frame_time_num+k*res_in_days-pos_time_num
  #get index of closest to 0, use this for position
- timeind=np.argmin(abs(dct))
+ #timeind=np.argmin(abs(dct))
 
 
  dct=frame_time_num+k*res_in_days-psp_time_num
@@ -584,31 +789,45 @@ for k in np.arange(0,kend):
  dct=frame_time_num+k*res_in_days-solo_time_num
  solo_timeind=np.argmin(abs(dct))
 
+ dct=frame_time_num+k*res_in_days-sta_time_num
+ sta_timeind=np.argmin(abs(dct))
+
+ dct=frame_time_num+k*res_in_days-merc_time_num
+ merc_timeind=np.argmin(abs(dct))
+
+ dct=frame_time_num+k*res_in_days-ven_time_num
+ ven_timeind=np.argmin(abs(dct))
+
+ dct=frame_time_num+k*res_in_days-earth_time_num
+ earth_timeind=np.argmin(abs(dct))
 
 
  frame_time_str=str(mdates.num2date(frame_time_num+k*res_in_days))
  print( 'current frame_time_num', frame_time_str)
+ print(k)
 
  #index 1 is longitude, 0 is rdist
  symsize_planet=70
  symsize_spacecraft=40
 
- ax.scatter(pos.venus[1,timeind], pos.venus[0,timeind], s=symsize_planet, c='orange', alpha=1, lw=0, zorder=3)
- ax.scatter(pos.mercury[1,timeind], pos.mercury[0,timeind], s=symsize_planet, c='dimgrey', alpha=1,lw=0, zorder=3)
- ax.scatter(pos.earth[1,timeind], pos.earth[0,timeind], s=symsize_planet, c='mediumseagreen', alpha=1,lw=0,zorder=3)
- ax.scatter(pos.mars[1,timeind], pos.mars[0,timeind], s=symsize_planet, c='orangered', alpha=1,lw=0,zorder=3)
+ #ax.scatter(pos.venus[1,timeind], pos.venus[0,timeind], s=symsize_planet, c='orange', alpha=1, lw=0, zorder=3)
+ #ax.scatter(pos.mercury[1,timeind], pos.mercury[0,timeind], s=symsize_planet, c='dimgrey', alpha=1,lw=0, zorder=3)
+ #ax.scatter(pos.earth[1,timeind], pos.earth[0,timeind], s=symsize_planet, c='mediumseagreen', alpha=1,lw=0,zorder=3)
+ #ax.scatter(pos.mars[1,timeind], pos.mars[0,timeind], s=symsize_planet, c='orangered', alpha=1,lw=0,zorder=3)
+ #ax.scatter(pos.sta[1,timeind], pos.sta[0,timeind], s=symsize_spacecraft, c='red', alpha=1,marker='s',lw=0,zorder=3)
  
- 
- 
- ax.scatter(pos.sta[1,timeind], pos.sta[0,timeind], s=symsize_spacecraft, c='red', alpha=1,marker='s',lw=0,zorder=3)
- #ax.scatter(psp_phi[psp_timeind], psp_r[psp_timeind], s=symsize, c='black', marker='s', alpha=1,lw=0,zorder=3)
- ax.scatter(psp_lon_hee[psp_timeind], psp_r_hee[psp_timeind], s=symsize_spacecraft, c='black', marker='s', alpha=1,lw=0,zorder=3)
- 
- if bepi_timeind > 0:
-   ax.scatter(bepi_lon_hee[bepi_timeind], bepi_r_hee[bepi_timeind], s=symsize_spacecraft, c='blue', marker='s', alpha=1,lw=0,zorder=3)
 
+ ax.scatter(ven_lon_hee[ven_timeind], ven_r_hee[ven_timeind]*np.cos(ven_lat_hee[ven_timeind]), s=symsize_planet, c='orange', alpha=1,lw=0,zorder=3)
+ ax.scatter(merc_lon_hee[merc_timeind], merc_r_hee[merc_timeind]*np.cos(merc_lat_hee[merc_timeind]), s=symsize_planet, c='dimgrey', alpha=1,lw=0,zorder=3)
+ ax.scatter(0, earth.r[earth_timeind], s=symsize_planet, c='mediumseagreen', alpha=1,lw=0,zorder=3)
+ ax.scatter(sta_lon_hee[sta_timeind], sta_r_hee[sta_timeind]*np.cos(sta_lat_hee[sta_timeind]), s=symsize_spacecraft, c='red', marker='s', alpha=1,lw=0,zorder=3)
+
+ if psp_timeind > 0:
+    ax.scatter(psp_lon_hee[psp_timeind], psp_r_hee[psp_timeind]*np.cos(psp_lat_hee[psp_timeind]), s=symsize_spacecraft, c='black', marker='s', alpha=1,lw=0,zorder=3)
+ if bepi_timeind > 0:
+   ax.scatter(bepi_lon_hee[bepi_timeind], bepi_r_hee[bepi_timeind]*np.cos(bepi_lat_hee[bepi_timeind]), s=symsize_spacecraft, c='blue', marker='s', alpha=1,lw=0,zorder=3)
  if solo_timeind > 0:
-   ax.scatter(solo_lon_hee[solo_timeind], solo_r_hee[solo_timeind], s=symsize_spacecraft, c='green', marker='s', alpha=1,lw=0,zorder=3)
+   ax.scatter(solo_lon_hee[solo_timeind], solo_r_hee[solo_timeind]*np.cos(solo_lat_hee[solo_timeind]), s=symsize_spacecraft, c='green', marker='s', alpha=1,lw=0,zorder=3)
  
  
  fsize=10
@@ -670,10 +889,10 @@ for k in np.arange(0,kend):
 print('anim done')
  
  
-os.system('/Users/chris/python/3DCORE/ffmpeg -r 30 -i /Users/chris/python/3DCORE/positions_animation/pos_anim_%04d.jpg -b 5000k -r 30 pos_anim.mp4 -y -loglevel quiet')
+os.system('/Users/chris/python/3DCORE/ffmpeg -r 60 -i /Users/chris/python/3DCORE/positions_animation/pos_anim_%04d.jpg -b 5000k -r 60 pos_anim.mp4 -y -loglevel quiet')
 
 
-os.system('/Users/chris/python/3DCORE/ffmpeg -r 90 -i /Users/chris/python/3DCORE/positions_animation_flyby_high_res/pos_anim_%04d.jpg -b 5000k -r 90 pos_anim_flyby_high_res.mp4 -y -loglevel quiet')
+#os.system('/Users/chris/python/3DCORE/ffmpeg -r 90 -i /Users/chris/python/3DCORE/positions_animation_flyby_high_res/pos_anim_%04d.jpg -b 5000k -r 90 pos_anim_flyby_high_res.mp4 -y -loglevel quiet')
 
 
 print('movie done')
