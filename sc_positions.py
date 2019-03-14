@@ -1,10 +1,12 @@
-# Spacecraft trajectories for 3DCORE incl. Bepi Colombo, PSP, Solar Orbiter
+# Spacecraft and planet trajectories in numpy incl. Bepi Colombo, PSP, Solar Orbiter
 
 #Author: C. Moestl, IWF Graz, Austria
 #twitter @chrisoutofspace, https://github.com/cmoestl
-#started December 2018
+#December 2018 - March 2019
 
 #needs python 3.6 with sunpy, heliopy, astropy, spiceypy, cdflib, seaborn, urllib, json, pickle, sys
+
+#change path for ffmpeg for animation production at the very end
 
 ## MIT LICENSE
 ## Copyright 2018, Christian Moestl 
@@ -24,130 +26,91 @@
 ## OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-
-
-#TO DO: STEREO A Kernels, Mercury and Venus in HEE 
-#HEEQ
-#http://www.mssl.ucl.ac.uk/grid/iau/extra/local_copy/SP_coords/helitran.htm
-#später auch 3d plot mit scatter3d und evt black background? faded trajectories wäre auch gut - 20 tage 
+#TO DO: faded trajectories, make structured arrays for saving, get_sc_lonlat to be made into an universal function
 
 
 
 
-##########################################################################################
-######################################### CODE START #####################################
-##########################################################################################
 
 
-import scipy.io
+#import scipy.io
 import os
 import datetime
+from datetime import datetime, timedelta
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
 import pdb
-import urllib
-import json
-import pickle
 import sunpy.time
+import pickle
 import seaborn as sns
 import sys
 import heliopy.data.spice as spicedata
 import heliopy.spice as spice
 import astropy
 import time
+import numba
+from numba import jit
 
-from datetime import datetime, timedelta
 #ignore warnings
 #import warnings
 #warnings.filterwarnings('ignore')
-plt.close('all')
+
+##########################################################################################
+######################################### CODE START #####################################
+##########################################################################################
 
 
+
+@jit(nopython=True)
 def sphere2cart(r, phi, theta):
     x = r*np.cos(theta)*np.cos(phi)
     y = r*np.cos(theta)*np.sin(phi)
     z = r*np.sin(theta)
     return (x, y, z) 
-    
+
+@jit(nopython=True)
 def cart2sphere(x,y,z):
     r = np.sqrt(x**2+ y**2 + z**2)            # r
     theta = np.arctan2(z,np.sqrt(x**2+ y**2))     # theta
     phi = np.arctan2(y,x)                        # phi
     return (r, theta, phi)
 
-def getcat(filename):  
-  print( 'reading positions in '+filename)
-  pos=scipy.io.readsav(filename, verbose='true')  
-  print( 'done reading IDL SPICE positions')
-  return pos 
 
-def cart2pol(x, y):
-    rho = np.sqrt(x**2 + y**2)
-    phi = np.arctan2(y, x)
-    return(rho, phi)
+#def get_sc_lonlat(starttime,endtime, kernel,frame):
+def get_sc_lonlat_test(starttime, endtime,res_in_days):
+
+ '''
+ make spacecraft positions
+
+ kernels: psp_pred, stereoa_pred
+ frames: ECLIPJ2000 HEE
+ frames https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/frames.html  Appendix. ``Built in'' Inertial Reference Frames
+
+ '''
+ spice.furnish(spicedata.get_kernel('psp_pred'))
+ psp=spice.Trajectory('SPP')
+ psp_time = []
+ while starttime < endtime:
+    psp_time.append(starttime)
+    starttime += timedelta(days=res_in_days)
+    
+ psp.generate_positions(psp_time,'Sun','HEEQ')
+ psp.change_units(astropy.units.AU)  
+ psp_r, psp_lat_heeq, psp_lon_heeq=cart2sphere(psp.x,psp.y,psp.z)
  
-def time_to_num_cat(time_in):  
-
-  #for time conversion from catalogue .sav to numerical time
-  #this for 1-minute data or lower time resolution
-
-  #for all catalogues
-  #time_in is the time in format: 2007-11-17T07:20:00 or 2007-11-17T07:20Z
-  #for times help see: 
-  #http://docs.sunpy.org/en/latest/guide/time.html
-  #http://matplotlib.org/examples/pylab_examples/date_demo2.html
-  
-  j=0
-  #time_str=np.empty(np.size(time_in),dtype='S19')
-  time_str= ['' for x in range(len(time_in))]
-  #=np.chararray(np.size(time_in),itemsize=19)
-  time_num=np.zeros(np.size(time_in))
-
-  for i in time_in:
-   #convert from bytes (output of scipy.readsav) to string
-   time_str[j]=time_in[j][0:16].decode()+':00'
-   year=int(time_str[j][0:4])
-   time_str[j]
-   #convert time to sunpy friendly time and to matplotlibdatetime
-   #only for valid times so 9999 in year is not converted
-   #pdb.set_trace()
-   if year < 2100:
-    	  time_num[j]=mdates.date2num(sunpy.time.parse_time(time_str[j]))
-   j=j+1  
-   #the date format in matplotlib is e.g. 735202.67569444
-   #this is time in days since 0001-01-01 UTC, plus 1.
-   
-   #return time_num which is already an array and convert the list of strings to an array
-  return time_num, np.array(time_str)
-
-
-
-def load_url_current_directory(filename,url):
-#loads a file from any url to the current directory
-#I use owncloud for the direct url links, 
-#also works for dropbox when changing the last 0 to 1 in the url-> gives a direct link to files
-
- if not os.path.exists(filename):
-  print('download file ', filename, ' from')
-  print(url)
-  try: 
-    urllib.request.urlretrieve(url, filename)
-    print('done')
-  except urllib.error.URLError as e:
-    print(' ', data_url,' ',e.reason)
-
+ return psp_r, psp_lat_heeq, psp_lon_heeq
 
 
 ##################################################### MAIN ###############################
 
 
+############# SETTINGS
+
 start=time.time()
 
-
-
-res_in_days=0.5
+res_in_days=1
 
 #1 hour res
 #res_in_days=1/24.
@@ -158,38 +121,23 @@ res_in_days=0.5
 if res_in_days < 0.2: high_res_mode=True
 else:high_res_mode=False
 
-
 outputdirectory='positions_animation'
-
 if high_res_mode:
    outputdirectory='positions_animation_flyby_high_res'
 
-
-#get positions old style for comparison from IDL SPICE:
-#pos=getcat('DATACAT/positions_2007_2023_HEEQ_6hours.sav')
-#pos_time_num=time_to_num_cat(pos.time)[0]
-
-#https://heliopy.readthedocs.io/en/stable/api/heliopy.spice.Trajectory.html#heliopy.spice.Trajectory.generate_positions
-
-#load kernels if not here
-psp_kernel=spicedata.get_kernel('psp')
-solo_kernel=spicedata.get_kernel('solo_2020')
-planet_kernel=spicedata.get_kernel('planet_trajectories')
-#sta, bepi colombo is loaded directly from file
-
-#for PSP NAIF CODE is -96 (search for solar probe plus)
-#-144        'SOLAR ORBITER'
-#Earth 399
+#test function
+#starttime =datetime(2018, 8,13)
+#endtime =datetime(2025, 8,31)
+#a=get_sc_lonlat_test(starttime, endtime,0.5)
+#end=time.time()
+#print( 'generate position in HEEQ took time in seconds:', (end-start) )
+#sys.exit()
 
 
-
-
+################## MAKE TRAJECTORIES
 
 
 ##########################################  PSP
-
-spice.furnish(psp_kernel)
-psp=spice.Trajectory('-96')
 
 starttime =datetime(2018, 8,13)
 endtime = datetime(2025, 8, 31)
@@ -197,118 +145,26 @@ psp_time = []
 while starttime < endtime:
     psp_time.append(starttime)
     starttime += timedelta(days=res_in_days)
-    
 psp_time_num=mdates.date2num(psp_time)     
-#frames https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/frames.html  Appendix. ``Built in'' Inertial Reference Frames
-psp.generate_positions(psp_time,'Sun','ECLIPJ2000')
+
+spice.furnish(spicedata.get_kernel('psp_pred'))
+psp=spice.Trajectory('SPP')
+psp.generate_positions(psp_time,'Sun','HEEQ')
 psp.change_units(astropy.units.AU)  
-print('PSP')
-print(psp.r)
-print(psp.x)
-print(psp.y)
-print(psp.z)  
-
-
-[psp_r, psp_theta, psp_phi]=cart2sphere(psp.x,psp.y,psp.z)
-
-
-#plt.figure(1, figsize=(12,9))
-#plt.plot_date(psp_time,psp_r,'-', label='R')
-#plt.plot_date(psp_time,psp_theta,'-',label='theta')
-#plt.plot_date(psp_time,psp_phi,'-',label='phi')
-#plt.title('PSP position ECLIPJ2000')
-#plt.ylabel('AU')
-
-
-#plt.plot_date(psp_time,psp.x,'-',label='X')
-#plt.plot_date(psp_time,psp.y,'-',label='Y')
-#plt.plot_date(psp_time,psp.z,'-',label='Z')
-#plt.legend()
-
-
-
-################## Earth position in ECLIJ2000
-
-
-
-print()
-print()
-earth=spice.Trajectory('399')  
-starttime =datetime(2018, 8, 13)
-endtime = datetime(2025, 8, 31)
-earth_time = []
-while starttime < endtime:
-    earth_time.append(starttime)
-    starttime += timedelta(days=res_in_days)
-    
-earth_time_num=mdates.date2num(earth_time)     
-#frames https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/frames.html  Appendix. ``Built in'' Inertial Reference Frames
-earth.generate_positions(earth_time,'Sun','ECLIPJ2000')
-earth.change_units(astropy.units.AU)  
-print('Earth')
-print(earth.r)
-print(earth.x)
-print(earth.y)
-print(earth.z)  #is zero anyway
-
-print()
-print()
-
-################ CHANGE PSP coordinates FROM ECLIPJ2000 to HEE with Earth position
-pspx_hee=np.zeros(len(earth_time))
-pspy_hee=np.zeros(len(earth_time))
-pspz_hee=np.zeros(len(earth_time))
-
-for i in np.arange(np.size(earth_time)):
-   ex=[np.array(earth.x[i]),np.array(earth.y[i]),0]    
-   ez=np.array([0,0,1]) 
-   ey=np.cross(ez,ex)  
-   
-   pspvec=[np.array(psp.x[i]),np.array(psp.y[i]),np.array(psp.z[i])]  
-   pspx_hee[i]=np.dot(pspvec,ex) 
-   pspy_hee[i]=np.dot(pspvec,ey) 
-   pspz_hee[i]=np.dot(pspvec,ez) 
-   
-print('PSP HEE') 
-print(pspx_hee)
-print(pspy_hee)
-print(pspz_hee)
-[psp_r_hee, psp_lat_hee, psp_lon_hee]=cart2sphere(pspx_hee,pspy_hee,pspz_hee)
+[psp_r, psp_lat_heeq, psp_lon_heeq]=cart2sphere(psp.x,psp.y,psp.z)
+print('PSP HEEQ done')
 
 
 plt.figure(1, figsize=(12,9))
-plt.plot_date(psp_time,psp_r_hee,'-', label='R')
-plt.plot_date(psp_time,psp_lat_hee,'-',label='lat')
-plt.plot_date(psp_time,psp_lon_hee,'-',label='lon')
-plt.title('PSP position HEE')
+plt.plot_date(psp_time,psp_r,'-', label='R')
+plt.plot_date(psp_time,psp_lat_heeq,'-',label='lat')
+plt.plot_date(psp_time,psp_lon_heeq,'-',label='lon')
+plt.title('PSP position HEEQ')
 plt.ylabel('AU / RAD')
 plt.legend()
 
 
-
-############ generate PSP trajectory high res end of January 2020 flyby
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-print()
-print()
-print()
-
 ############################################## BepiColombo
-
 
 starttime =datetime(2018, 10, 21)
 endtime = datetime(2025, 11, 2)
@@ -316,170 +172,53 @@ bepi_time = []
 while starttime < endtime:
     bepi_time.append(starttime)
     starttime += timedelta(days=res_in_days)
-
 bepi_time_num=mdates.date2num(bepi_time) 
 
-
-#    -68         'BEPICOLOMBO MMO'
-print('Bepi')
-
-#download from url to local directory: https://repos.cosmos.esa.int/socci/projects/SPICE_KERNELS/repos/bepicolombo/browse/kernels/spk
-spice.furnish('bc_mpo_fcp_00054_20181020_20251102_v01.bsp')
-
-bepi=spice.Trajectory('BEPICOLOMBO MPO')
-bepi.generate_positions(bepi_time,'Sun','ECLIPJ2000')
+spice.furnish(spicedata.get_kernel('bepi_pred'))
+bepi=spice.Trajectory('BEPICOLOMBO MPO') # or BEPICOLOMBO MMO
+bepi.generate_positions(bepi_time,'Sun','HEEQ')
 bepi.change_units(astropy.units.AU)  
-
-
-
-#[bepi_r, bepi_theta, bepi_phi]=cart2sphere(bepi.x,bepi.y,bepi.z)
-
-
-################ CHANGE bepi coordinates FROM ECLIPJ2000 to HEE with Earth position
-
-
-
-
-print()
-print()
-earth=spice.Trajectory('399')  
-starttime =datetime(2018, 10, 21)
-endtime = datetime(2025, 11, 2)
-earth_time = []
-while starttime < endtime:
-    earth_time.append(starttime)
-    starttime += timedelta(days=res_in_days)
-    
-earth_time_num=mdates.date2num(earth_time)     
-#frames https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/frames.html  Appendix. ``Built in'' Inertial Reference Frames
-earth.generate_positions(earth_time,'Sun','ECLIPJ2000')
-earth.change_units(astropy.units.AU)  
-print('Earth')
-print(earth.r)
-print(earth.x)
-print(earth.y)
-print(earth.z)  #is zero anyway
-
-print()
-print()
-
-
-
-
-
-
-bepix_hee=np.zeros(len(earth_time))
-bepiy_hee=np.zeros(len(earth_time))
-bepiz_hee=np.zeros(len(earth_time))
-
-for i in np.arange(np.size(earth_time)):
-   ex=[np.array(earth.x[i]),np.array(earth.y[i]),0]    
-   ez=np.array([0,0,1]) 
-   ey=np.cross(ez,ex)  
-   
-   bepivec=[np.array(bepi.x[i]),np.array(bepi.y[i]),np.array(bepi.z[i])]  
-   bepix_hee[i]=np.dot(bepivec,ex) 
-   bepiy_hee[i]=np.dot(bepivec,ey) 
-   bepiz_hee[i]=np.dot(bepivec,ez) 
-   
-print('bepi HEE') 
-print(bepix_hee)
-print(bepiy_hee)
-print(bepiz_hee)
-[bepi_r_hee, bepi_lat_hee, bepi_lon_hee]=cart2sphere(bepix_hee,bepiy_hee,bepiz_hee)
-
-
+[bepi_r, bepi_lat_heeq, bepi_lon_heeq]=cart2sphere(bepi.x,bepi.y,bepi.z)
+print('Bepi HEEQ done')
 
 plt.figure(2, figsize=(12,9))
-plt.plot_date(bepi_time,bepi_r_hee,'-', label='R')
-plt.plot_date(bepi_time,bepi_lat_hee,'-',label='lat')
-plt.plot_date(bepi_time,bepi_lon_hee,'-',label='lon')
-plt.title('bepi position HEE')
+plt.plot_date(bepi_time,bepi_r,'-', label='R')
+plt.plot_date(bepi_time,bepi_lat_heeq,'-',label='lat')
+plt.plot_date(bepi_time,bepi_lon_heeq,'-',label='lon')
+plt.title('bepi position HEEQ')
 plt.ylabel('AU / RAD')
 plt.legend()
 
 
 
-
-
-
 #################################################### Solar Orbiter
 
-# Load the solar orbiter spice kernel. HelioPy will automatically fetch the
-# latest kernel
-spice.furnish(solo_kernel)
-orbiter = spice.Trajectory('Solar Orbiter')
-
-# Generate a time for every day between starttime and endtime
 starttime = datetime(2020, 3, 1)
 endtime = datetime(2026, 1, 1)
 solo_time = []
 while starttime < endtime:
     solo_time.append(starttime)
     starttime += timedelta(days=res_in_days)
-
 solo_time_num=mdates.date2num(solo_time) 
 
-
+spice.furnish(spicedata.get_kernel('solo_2020'))
 solo=spice.Trajectory('Solar Orbiter')
-# Generate positions
-solo.generate_positions(solo_time, 'Sun', 'ECLIPJ2000')
+solo.generate_positions(solo_time, 'Sun', 'HEEQ')
 solo.change_units(astropy.units.AU)
-
-################ CHANGE solo coordinates FROM ECLIPJ2000 to HEE with Earth position
-print()
-print()
-earth=spice.Trajectory('399')  
-starttime =datetime(2020, 3, 1)
-endtime = datetime(2026, 1, 1)
-earth_time = []
-while starttime < endtime:
-    earth_time.append(starttime)
-    starttime += timedelta(days=res_in_days)
-    
-earth_time_num=mdates.date2num(earth_time)     
-#frames https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/frames.html  Appendix. ``Built in'' Inertial Reference Frames
-earth.generate_positions(earth_time,'Sun','ECLIPJ2000')
-earth.change_units(astropy.units.AU)  
-
-solox_hee=np.zeros(len(earth_time))
-soloy_hee=np.zeros(len(earth_time))
-soloz_hee=np.zeros(len(earth_time))
-
-for i in np.arange(np.size(earth_time)):
-   ex=[np.array(earth.x[i]),np.array(earth.y[i]),0]    
-   ez=np.array([0,0,1]) 
-   ey=np.cross(ez,ex)  
-   
-   solovec=[np.array(solo.x[i]),np.array(solo.y[i]),np.array(solo.z[i])]  
-   solox_hee[i]=np.dot(solovec,ex) 
-   soloy_hee[i]=np.dot(solovec,ey) 
-   soloz_hee[i]=np.dot(solovec,ez) 
-   
-print('solo HEE') 
-print(solox_hee)
-print(soloy_hee)
-print(soloz_hee)
-[solo_r_hee, solo_lat_hee, solo_lon_hee]=cart2sphere(solox_hee,soloy_hee,soloz_hee)
-
-
+[solo_r, solo_lat_heeq, solo_lon_heeq]=cart2sphere(solo.x,solo.y,solo.z)
+print('Solo HEEQ done')
 
 plt.figure(3, figsize=(12,9))
-plt.plot_date(solo_time,solo_r_hee,'-', label='R')
-plt.plot_date(solo_time,solo_lat_hee,'-',label='lat')
-plt.plot_date(solo_time,solo_lon_hee,'-',label='lon')
-plt.title('solo position HEE')
+plt.plot_date(solo_time,solo_r,'-', label='R')
+plt.plot_date(solo_time,solo_lat_heeq,'-',label='lat')
+plt.plot_date(solo_time,solo_lon_heeq,'-',label='lon')
+plt.title('solo position HEEQ')
 plt.ylabel('AU / RAD')
 plt.legend()
 
 
 
-
-
-
-
-
-
+######## R with all three
 plt.figure(4, figsize=(16,10))
 plt.plot_date(psp_time,psp.r,'-',label='PSP')
 plt.plot_date(bepi_time,bepi.r,'-',label='Bepi Colombo')
@@ -489,22 +228,15 @@ plt.title('Heliocentric distance of heliospheric observatories')
 plt.ylabel('AU')
 plt.savefig('bepi_psp_solo_R.png')
 
-
-
-
+##### Longitude all three
 plt.figure(5, figsize=(16,10))
-plt.plot_date(psp_time,psp_lon_hee*180/np.pi,'-',label='PSP')
-plt.plot_date(bepi_time,bepi_lon_hee*180/np.pi,'-',label='Bepi Colombo')
-plt.plot_date(solo_time,solo_lon_hee*180/np.pi,'-',label='Solar Orbiter')
+plt.plot_date(psp_time,psp_lon_heeq*180/np.pi,'-',label='PSP')
+plt.plot_date(bepi_time,bepi_lon_heeq*180/np.pi,'-',label='Bepi Colombo')
+plt.plot_date(solo_time,solo_lon_heeq*180/np.pi,'-',label='Solar Orbiter')
 plt.legend()
 plt.title('HEE Longitude')
 plt.ylabel('DEG')
-plt.savefig('bepi_psp_solo_longitude.png')
-
-
-
-
-
+plt.savefig('bepi_psp_solo_longitude_HEEQ.png')
 
 
 
@@ -515,235 +247,95 @@ plt.savefig('bepi_psp_solo_longitude.png')
 
 
 
+planet_kernel=spicedata.get_kernel('planet_trajectories')
 
-print()
-print()
-earth=spice.Trajectory('399')  
 starttime =datetime(2018, 1, 1)
 endtime = datetime(2028, 12, 31)
 earth_time = []
 while starttime < endtime:
     earth_time.append(starttime)
     starttime += timedelta(days=res_in_days)
-    
 earth_time_num=mdates.date2num(earth_time)     
-#frames https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/frames.html  Appendix. ``Built in'' Inertial Reference Frames
-earth.generate_positions(earth_time,'Sun','ECLIPJ2000')
+
+earth=spice.Trajectory('399')  #399 for Earth, not barycenter (because of moon)
+earth.generate_positions(earth_time,'Sun','HEEQ')
 earth.change_units(astropy.units.AU)  
-print('Earth')
-print(earth.r)
-print(earth.x)
-print(earth.y)
-print(earth.z)  #is zero anyway
-
-print()
-print()
-
-
-
-
-
-
-
-
+[earth_r, earth_lat_heeq, earth_lon_heeq]=cart2sphere(earth.x,earth.y,earth.z)
+print('Earth HEEQ')
 
 ################ mercury
-
-merc_time = []
-starttime =datetime(2018, 1, 1)
-endtime = datetime(2028, 12, 31)
-while starttime < endtime:
-    merc_time.append(starttime)
-    starttime += timedelta(days=res_in_days)
-
-
-merc_time_num=mdates.date2num(merc_time) 
-print('Mercury')
-merc=spice.Trajectory('199')  
-merc.generate_positions(earth_time,'Sun','ECLIPJ2000')  
+merc_time_num=earth_time_num
+merc=spice.Trajectory('1')  #barycenter
+merc.generate_positions(earth_time,'Sun','HEEQ')  
 merc.change_units(astropy.units.AU)  
-
-mercx_hee=np.zeros(len(earth_time))
-mercy_hee=np.zeros(len(earth_time))
-mercz_hee=np.zeros(len(earth_time))
-
-for i in np.arange(np.size(earth_time)):
-   ex=[np.array(earth.x[i]),np.array(earth.y[i]),0]    
-   ez=np.array([0,0,1]) 
-   ey=np.cross(ez,ex)  
-   
-   mercvec=[np.array(merc.x[i]),np.array(merc.y[i]),np.array(merc.z[i])]  
-   mercx_hee[i]=np.dot(mercvec,ex) 
-   mercy_hee[i]=np.dot(mercvec,ey) 
-   mercz_hee[i]=np.dot(mercvec,ez) 
-   
-print('merc HEE') 
-print(mercx_hee)
-print(mercy_hee)
-print(mercz_hee)
-[merc_r_hee, merc_lat_hee, merc_lon_hee]=cart2sphere(mercx_hee,mercy_hee,mercz_hee)
-
-
-
-
-
-
-
+[merc_r, merc_lat_heeq, merc_lon_heeq]=cart2sphere(merc.x,merc.y,merc.z)
+print('merc HEEQ') 
 
 ################# venus
-
-
-ven_time = []
-starttime =datetime(2018, 1, 1)
-endtime = datetime(2028, 12, 31)
-while starttime < endtime:
-    ven_time.append(starttime)
-    starttime += timedelta(days=res_in_days)
-    
-
-ven_time_num=mdates.date2num(ven_time) 
-print('venury')
-ven=spice.Trajectory('299')  
-ven.generate_positions(earth_time,'Sun','ECLIPJ2000')  
+ven_time_num=earth_time_num
+ven=spice.Trajectory('2')  
+ven.generate_positions(earth_time,'Sun','HEEQ')  
 ven.change_units(astropy.units.AU)  
-
-venx_hee=np.zeros(len(earth_time))
-veny_hee=np.zeros(len(earth_time))
-venz_hee=np.zeros(len(earth_time))
-
-for i in np.arange(np.size(earth_time)):
-   ex=[np.array(earth.x[i]),np.array(earth.y[i]),0]    
-   ez=np.array([0,0,1]) 
-   ey=np.cross(ez,ex)  
-   
-   venvec=[np.array(ven.x[i]),np.array(ven.y[i]),np.array(ven.z[i])]  
-   venx_hee[i]=np.dot(venvec,ex) 
-   veny_hee[i]=np.dot(venvec,ey) 
-   venz_hee[i]=np.dot(venvec,ez) 
-   
-print('ven HEE') 
-print(venx_hee)
-print(veny_hee)
-print(venz_hee)
-[ven_r_hee, ven_lat_hee, ven_lon_hee]=cart2sphere(venx_hee,veny_hee,venz_hee)
+[ven_r, ven_lat_heeq, ven_lon_heeq]=cart2sphere(ven.x,ven.y,ven.z)
+print('venus HEEQ') 
 
 
+############### Mars
 
-
+mars_time_num=earth_time_num
+mars=spice.Trajectory('4')  
+mars.generate_positions(earth_time,'Sun','HEEQ')  
+mars.change_units(astropy.units.AU)  
+[mars_r, mars_lat_heeq, mars_lon_heeq]=cart2sphere(mars.x,mars.y,mars.z)
+print('mars HEEQ') 
 
 #############stereo-A
 #https://docs.heliopy.org/en/stable/data/spice.html
 
-
-
-sta_time = []
-starttime =datetime(2018, 1, 1)
-endtime = datetime(2028, 12, 31)
-while starttime < endtime:
-    sta_time.append(starttime)
-    starttime += timedelta(days=res_in_days)
-
-sta_time_num=mdates.date2num(sta_time) 
-print('STA')
-spice.furnish('ahead_2017_061_5295day_predict.epm.bsp')
+sta_time_num=earth_time_num
+spice.furnish(spicedata.get_kernel('stereo_a_pred'))
 sta=spice.Trajectory('-234')  
-sta.generate_positions(earth_time,'Sun','ECLIPJ2000')  
+sta.generate_positions(earth_time,'Sun','HEEQ')  
 sta.change_units(astropy.units.AU)  
-
-#[bepi_r, bepi_theta, bepi_phi]=cart2sphere(bepi.x,bepi.y,bepi.z)
-
-
-stax_hee=np.zeros(len(earth_time))
-stay_hee=np.zeros(len(earth_time))
-staz_hee=np.zeros(len(earth_time))
-
-for i in np.arange(np.size(earth_time)):
-   ex=[np.array(earth.x[i]),np.array(earth.y[i]),0]    
-   ez=np.array([0,0,1]) 
-   ey=np.cross(ez,ex)  
-   
-   stavec=[np.array(sta.x[i]),np.array(sta.y[i]),np.array(sta.z[i])]  
-   stax_hee[i]=np.dot(stavec,ex) 
-   stay_hee[i]=np.dot(stavec,ey) 
-   staz_hee[i]=np.dot(stavec,ez) 
-   
-print('sta HEE') 
-print(stax_hee)
-print(stay_hee)
-print(staz_hee)
-[sta_r_hee, sta_lat_hee, sta_lon_hee]=cart2sphere(stax_hee,stay_hee,staz_hee)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-################ CHANGE bepi coordinates FROM ECLIPJ2000 to HEE with Earth position
-
-
-
-
-
-
+[sta_r, sta_lat_heeq, sta_lon_heeq]=cart2sphere(sta.x,sta.y,sta.z)
+print('sta HEEQ') 
 
 
 
 end=time.time()
-print( 'generate position in HEE took time in seconds:', (end-start) )
+print( 'generate position in HEEQ took time in seconds:', round((end-start),1) )
 
 
 
 
-
-
-
-#save hee
+#save heeq positions 
 if high_res_mode:
- pickle.dump([psp_time,psp_time_num,psp_r_hee,psp_lon_hee,psp_lat_hee,bepi_time,bepi_time_num,bepi_r_hee,bepi_lon_hee,bepi_lat_hee,solo_time,solo_time_num,solo_r_hee,solo_lon_hee,solo_lat_hee], open( "psp_solo_bepi_high_res_HEE_1min.p", "wb" ) )
+ pickle.dump([psp_time,psp_time_num,psp_r,psp_lon_heeq,psp_lat_heeq,bepi_time,bepi_time_num,bepi_r,bepi_lon_heeq,bepi_lat_heeq,solo_time,solo_time_num,solo_r,solo_lon_heeq,solo_lat_heeq], open( "psp_solo_bepi_highres_heeq_1min.p", "wb" ) )
  sys.exit()
-else:
- pickle.dump([psp_time,psp_time_num,psp_r_hee,psp_lon_hee,psp_lat_hee,bepi_time,bepi_time_num,bepi_r_hee,bepi_lon_hee,bepi_lat_hee,solo_time,solo_time_num,solo_r_hee,solo_lon_hee,solo_lat_hee], open( "psp_solo_bepi_low_res_HEE_12hours.p", "wb" ) )
-
+else: 
+ pickle.dump([psp_time,psp_time_num,psp_r,psp_lon_heeq,psp_lat_heeq,bepi_time,bepi_time_num,bepi_r,bepi_lon_heeq,bepi_lat_heeq,solo_time,solo_time_num,solo_r,solo_lon_heeq,solo_lat_heeq], open( "psp_solo_bepi_lowres_heeq_12hours.p", "wb" ) )
  
-
-#load
-#[psp_time,psp_time_num,psp_r_hee,psp_lon_hee,psp_lat_hee,bepi_time,bepi_time_num,bepi_r_hee,bepi_lon_hee,bepi_lat_hee,solo_time,solo_time_num,solo_r_hee,solo_lon_hee,solo_lat_hee]==pickle.load( open( "psp_solo_bepi_high_res_HEE_1min.p", "rb" ) )
-
+# load old
+#[psp_time,psp_time_num,psp_r_hee,psp_lon_hee,psp_lat_hee,bepi_time,bepi_time_num,bepi_r_hee,bepi_lon_hee,bepi_lat_hee,solo_time,solo_time_num,solo_r_hee,solo_lon_hee,solo_lat_hee]=pickle.load( open( "psp_solo_bepi_high_res_HEE_1min.p", "rb" ) )
 
 
 
-
+#########################################################################################
 ######################## Animation
 
-
-print()
-print()
-print()
+plt.close('all')
 
 
+print()
 print('make animation')
 
 #from psp start
 frame_time_num=mdates.date2num(sunpy.time.parse_time('2018-Aug-1 00:00:00'))
-kend=int(365/res_in_days*7)
+kend=int(365/res_in_days*7.4)
 
 #frame_time_num=mdates.date2num(sunpy.time.parse_time('2021-Apr-29 00:00:00'))
 #frame_time_num=mdates.date2num(sunpy.time.parse_time('2020-Jun-03 00:00:00'))
 #frame_time_num=mdates.date2num(sunpy.time.parse_time('2024-Dec-25 18:00:00'))
-
-
-
 
 #high res flyby
 if high_res_mode:
@@ -751,99 +343,100 @@ if high_res_mode:
  kend=500
 
 
-k=0
-
-
 if os.path.isdir(outputdirectory) == False: os.mkdir(outputdirectory)
 
 sns.set_context('talk')
 sns.set_style('darkgrid')
 
+
 plt.figure(6, figsize=(14,10), dpi=100, facecolor='w', edgecolor='w')
 
 
+fsize=10
 
-#lowres
-#for k in np.arange(0,2000):
 
-#highres
+#################################################### animation loop start
+
+
 for k in np.arange(0,kend):
 
 
- ax = plt.subplot(111,projection='polar') #eigentlich 3D bzw projection to 2D...
- plt.suptitle('Spacecraft trajectories')	
+ ax = plt.subplot(111,projection='polar') 
+ frame_time_str=str(mdates.num2date(frame_time_num+k*res_in_days))
+ print( 'current frame_time_num', frame_time_str, '     ',k)
 
-
- #dct=frame_time_num+k*res_in_days-pos_time_num
- #get index of closest to 0, use this for position
- #timeind=np.argmin(abs(dct))
-
-
+ #these have their own times
  dct=frame_time_num+k*res_in_days-psp_time_num
  psp_timeind=np.argmin(abs(dct))
 
  dct=frame_time_num+k*res_in_days-bepi_time_num
  bepi_timeind=np.argmin(abs(dct))
 
-
  dct=frame_time_num+k*res_in_days-solo_time_num
  solo_timeind=np.argmin(abs(dct))
 
- dct=frame_time_num+k*res_in_days-sta_time_num
- sta_timeind=np.argmin(abs(dct))
-
- dct=frame_time_num+k*res_in_days-merc_time_num
- merc_timeind=np.argmin(abs(dct))
-
- dct=frame_time_num+k*res_in_days-ven_time_num
- ven_timeind=np.argmin(abs(dct))
-
+ #all same times
  dct=frame_time_num+k*res_in_days-earth_time_num
  earth_timeind=np.argmin(abs(dct))
 
-
- frame_time_str=str(mdates.num2date(frame_time_num+k*res_in_days))
- print( 'current frame_time_num', frame_time_str)
- print(k)
-
- #index 1 is longitude, 0 is rdist
  symsize_planet=70
  symsize_spacecraft=40
 
- #ax.scatter(pos.venus[1,timeind], pos.venus[0,timeind], s=symsize_planet, c='orange', alpha=1, lw=0, zorder=3)
- #ax.scatter(pos.mercury[1,timeind], pos.mercury[0,timeind], s=symsize_planet, c='dimgrey', alpha=1,lw=0, zorder=3)
- #ax.scatter(pos.earth[1,timeind], pos.earth[0,timeind], s=symsize_planet, c='mediumseagreen', alpha=1,lw=0,zorder=3)
- #ax.scatter(pos.mars[1,timeind], pos.mars[0,timeind], s=symsize_planet, c='orangered', alpha=1,lw=0,zorder=3)
- #ax.scatter(pos.sta[1,timeind], pos.sta[0,timeind], s=symsize_spacecraft, c='red', alpha=1,marker='s',lw=0,zorder=3)
+ #plot all positions including text R lon lat for some 
+ ax.scatter(ven_lon_heeq[earth_timeind], ven_r[earth_timeind]*np.cos(ven_lat_heeq[earth_timeind]), s=symsize_planet, c='orange', alpha=1,lw=0,zorder=3)
+ ax.scatter(merc_lon_heeq[earth_timeind], merc_r[earth_timeind]*np.cos(merc_lat_heeq[earth_timeind]), s=symsize_planet, c='dimgrey', alpha=1,lw=0,zorder=3)
+ ax.scatter(0, earth_r[earth_timeind]*np.cos(earth_lat_heeq[earth_timeind]), s=symsize_planet, c='mediumseagreen', alpha=1,lw=0,zorder=3)
+ ax.scatter(sta_lon_heeq[earth_timeind], sta_r[earth_timeind]*np.cos(sta_lat_heeq[earth_timeind]), s=symsize_spacecraft, c='red', marker='s', alpha=1,lw=0,zorder=3)
+ ax.scatter(mars_lon_heeq[earth_timeind], mars_r[earth_timeind]*np.cos(mars_lat_heeq[earth_timeind]), s=symsize_planet, c='orangered', alpha=1,lw=0,zorder=3)
  
+ earth_text='Earth R / lon / lat: '+str(f'{earth_r[earth_timeind]:6.2f}')+str(f'{np.zeros(1)[0]:8.1f}')+str(f'{np.rad2deg(earth_lat_heeq[earth_timeind]):8.1f}')
+ f10=plt.figtext(0.01,0.9,earth_text, fontsize=fsize+2, ha='left')
+ 
+ mars_text='Mars  R / lon / lat: '+str(f'{mars_r[earth_timeind]:6.2f}')+str(f'{np.rad2deg(mars_lon_heeq[earth_timeind]):8.1f}')+str(f'{np.rad2deg(mars_lat_heeq[earth_timeind]):8.1f}')
+ f9=plt.figtext(0.01,0.86,mars_text, fontsize=fsize+2, ha='left')
 
- ax.scatter(ven_lon_hee[ven_timeind], ven_r_hee[ven_timeind]*np.cos(ven_lat_hee[ven_timeind]), s=symsize_planet, c='orange', alpha=1,lw=0,zorder=3)
- ax.scatter(merc_lon_hee[merc_timeind], merc_r_hee[merc_timeind]*np.cos(merc_lat_hee[merc_timeind]), s=symsize_planet, c='dimgrey', alpha=1,lw=0,zorder=3)
- ax.scatter(0, earth.r[earth_timeind], s=symsize_planet, c='mediumseagreen', alpha=1,lw=0,zorder=3)
- ax.scatter(sta_lon_hee[sta_timeind], sta_r_hee[sta_timeind]*np.cos(sta_lat_hee[sta_timeind]), s=symsize_spacecraft, c='red', marker='s', alpha=1,lw=0,zorder=3)
+ sta_text='STA   R / lon / lat: '+str(f'{sta_r[earth_timeind]:6.2f}')+str(f'{np.rad2deg(sta_lon_heeq[earth_timeind]):8.1f}')+str(f'{np.rad2deg(sta_lat_heeq[earth_timeind]):8.1f}')
+ f8=plt.figtext(0.01,0.82,sta_text, fontsize=fsize+2, ha='left')
 
+
+ fadeind=int(60/res_in_days)
+ 
  if psp_timeind > 0:
-    ax.scatter(psp_lon_hee[psp_timeind], psp_r_hee[psp_timeind]*np.cos(psp_lat_hee[psp_timeind]), s=symsize_spacecraft, c='black', marker='s', alpha=1,lw=0,zorder=3)
+   ax.scatter(psp_lon_heeq[psp_timeind], psp_r[psp_timeind]*np.cos(psp_lat_heeq[psp_timeind]), s=symsize_spacecraft, c='black', marker='s', alpha=1,lw=0,zorder=3)
+   psp_text='PSP   R / lon / lat: '+str(f'{psp_r[psp_timeind]:6.2f}')+str(f'{np.rad2deg(psp_lon_heeq[psp_timeind]):8.1f}')+str(f'{np.rad2deg(psp_lat_heeq[psp_timeind]):8.1f}')
+   f5=plt.figtext(0.01,0.78,psp_text, fontsize=fsize+2, ha='left')
+   ax.plot(psp_lon_heeq[psp_timeind-fadeind:psp_timeind+fadeind], psp_r[psp_timeind-fadeind:psp_timeind+fadeind]*np.cos(psp_lat_heeq[psp_timeind-fadeind:psp_timeind+fadeind]), c='black', alpha=0.2,lw=1,zorder=3)
+   #for rate in np.arange(10, -1, -1)*0.1:
+   #  line.set_alpha(rate)
+   #  plt.draw()
+   
+
  if bepi_timeind > 0:
-   ax.scatter(bepi_lon_hee[bepi_timeind], bepi_r_hee[bepi_timeind]*np.cos(bepi_lat_hee[bepi_timeind]), s=symsize_spacecraft, c='blue', marker='s', alpha=1,lw=0,zorder=3)
+   ax.scatter(bepi_lon_heeq[bepi_timeind], bepi_r[bepi_timeind]*np.cos(bepi_lat_heeq[bepi_timeind]), s=symsize_spacecraft, c='blue', marker='s', alpha=1,lw=0,zorder=3)
+   bepi_text='Bepi  R / lon / lat: '+str(f'{bepi_r[bepi_timeind]:6.2f}')+str(f'{np.rad2deg(bepi_lon_heeq[bepi_timeind]):8.1f}')+str(f'{np.rad2deg(bepi_lat_heeq[bepi_timeind]):8.1f}')
+   f6=plt.figtext(0.01,0.74,bepi_text, fontsize=fsize+2, ha='left')
+   ax.plot(bepi_lon_heeq[bepi_timeind-fadeind:bepi_timeind+fadeind], bepi_r[bepi_timeind-fadeind:bepi_timeind+fadeind]*np.cos(bepi_lat_heeq[bepi_timeind-fadeind:bepi_timeind+fadeind]), c='blue', alpha=0.2,lw=1,zorder=3)
+
+
+
  if solo_timeind > 0:
-   ax.scatter(solo_lon_hee[solo_timeind], solo_r_hee[solo_timeind]*np.cos(solo_lat_hee[solo_timeind]), s=symsize_spacecraft, c='green', marker='s', alpha=1,lw=0,zorder=3)
- 
- 
- fsize=10
- 
- #Sun
- ax.scatter(0,0,s=100,c='yellow',alpha=0.8, edgecolors='yellow')
- #plt.figtext(0.51,0.5,'Sun', fontsize=fsize, ha='center')
+   ax.scatter(solo_lon_heeq[solo_timeind], solo_r[solo_timeind]*np.cos(solo_lat_heeq[solo_timeind]), s=symsize_spacecraft, c='green', marker='s', alpha=1,lw=0,zorder=3)
+   solo_text='SolO  R / lon / lat: '+str(f'{solo_r[solo_timeind]:6.2f}')+str(f'{np.rad2deg(solo_lon_heeq[solo_timeind]):8.1f}')+str(f'{np.rad2deg(solo_lat_heeq[solo_timeind]):8.1f}')
+   f7=plt.figtext(0.01,0.7,solo_text, fontsize=fsize+2, ha='left')
+   ax.plot(solo_lon_heeq[solo_timeind-fadeind:solo_timeind+fadeind], solo_r[solo_timeind-fadeind:solo_timeind+fadeind]*np.cos(solo_lat_heeq[solo_timeind-fadeind:solo_timeind+fadeind]), c='green', alpha=0.2,lw=1,zorder=3)
 
- #Earth
- #plt.figtext(0.8,0.28,'Earth', fontsize=fsize, ha='center')
 
- #units
- plt.figtext(0.525,0.0735,'HEE longitude', fontsize=fsize, ha='left')
- #	plt.figtext(0.64,0.213,'AU', fontsize=10, ha='center')
+ #plot text for date extra so it does not move 
+ #year
+ f1=plt.figtext(0.47,0.85,frame_time_str[0:4], fontsize=13, ha='center')
+ #month
+ f2=plt.figtext(0.51,0.85,frame_time_str[5:7], fontsize=13, ha='center')
+ #day
+ f3=plt.figtext(0.54,0.85,frame_time_str[8:10], fontsize=13, ha='center')
+ #hours
+ f4=plt.figtext(0.57,0.85,frame_time_str[11:13], fontsize=13, ha='center')
 
- #----------------- legend
+
 
  plt.figtext(0.1-0.02,0.02,'Mercury', color='dimgrey', ha='center')
  plt.figtext(0.2-0.02	,0.02,'Venus', color='orange', ha='center')
@@ -854,46 +447,48 @@ for k in np.arange(0,kend):
  plt.figtext(0.77-0.02,0.02,'Bepi Colombo', color='blue', ha='center')
  plt.figtext(0.9-0.02,0.02,'Solar Orbiter', color='green', ha='center')
 
-
+ plt.suptitle('Spacecraft trajectories HEEQ 2D projection  2018-2025')	
+ plt.figtext(0.53,0.0735,'HEEQ longitude', fontsize=fsize+5, ha='left')
+ #signature
+ plt.figtext(0.97,0.01/2,r'$C. M\ddot{o}stl$', fontsize=fsize, ha='center') 
  
  #set axes
- plt.thetagrids(range(0,360,45),(u'0\u00b0',u'45\u00b0',u'90\u00b0',u'135\u00b0',u'+/- 180\u00b0',u'- 135\u00b0',u'- 90\u00b0',u'- 45\u00b0'), fmt='%d')
+
  ax.set_theta_zero_location('S')
- plt.rgrids((0.25,0.5,0.75, 1.0,1.25, 1.5, 1.75, 2.0),('0.25','0.5','0.75','1.0','1.25 AU','1.5','1.75','2.0'), fontsize=10)
- ax.set_ylim(0, 1.35)
-
- #plot text for date extra so it does not move 
- #year
- plt.figtext(0.47,0.85,frame_time_str[0:4], fontsize=13, ha='center')
- #month
- plt.figtext(0.51,0.85,frame_time_str[5:7], fontsize=13, ha='center')
- #day
- plt.figtext(0.54,0.85,frame_time_str[8:10], fontsize=13, ha='center')
- #hours
- plt.figtext(0.57,0.85,frame_time_str[11:13], fontsize=13, ha='center')
-
+ plt.thetagrids(range(0,360,45),(u'0\u00b0',u'45\u00b0',u'90\u00b0',u'135\u00b0',u'+/- 180\u00b0',u'- 135\u00b0',u'- 90\u00b0',u'- 45\u00b0'), fmt='%d',fontsize=fsize+5)
+ plt.rgrids((0.25,0.5,0.75, 1.0,1.25, 1.5),('0.25','0.5','0.75','1.0','1.25','1.5  AU'),angle=125, fontsize=fsize)
+ ax.set_ylim(0, 1.7)
+ 
+ #Sun
+ ax.scatter(0,0,s=100,c='yellow',alpha=1, edgecolors='yellow')
  
 
  #save figure
- framestr = '%04i' % (k)  
+ framestr = '%05i' % (k)  
  filename=outputdirectory+'/pos_anim_'+framestr+'.jpg'  
  plt.savefig(filename)
 
- 
+
+ #f1.set_visible(False)
+ #f2.set_visible(False)
+ #f3.set_visible(False)
+ #f4.set_visible(False)
+ #if psp_timeind > 0: f5.set_visible(False)
+ #if bepi_timeind > 0: f6.set_visible(False)
+ #if solo_timeind > 0: f7.set_visible(False)
+ #f8.set_visible(False)
+ #f9.set_visible(False)
+ #f10.set_visible(False)
+ #clear
  plt.clf()
- 
- 
- 
-#######################
+
+  
+########################################### loop end
  
 print('anim done')
  
- 
-os.system('/Users/chris/python/3DCORE/ffmpeg -r 60 -i /Users/chris/python/3DCORE/positions_animation/pos_anim_%04d.jpg -b 5000k -r 60 pos_anim.mp4 -y -loglevel quiet')
-
-
+os.system('/Users/chris/python/3DCORE/ffmpeg -r 60 -i /Users/chris/python/3DCORE/positions_animation/pos_anim_%05d.jpg -b 5000k -r 60 pos_anim.mp4 -y -loglevel quiet')
 #os.system('/Users/chris/python/3DCORE/ffmpeg -r 90 -i /Users/chris/python/3DCORE/positions_animation_flyby_high_res/pos_anim_%04d.jpg -b 5000k -r 90 pos_anim_flyby_high_res.mp4 -y -loglevel quiet')
-
 
 print('movie done')
 
