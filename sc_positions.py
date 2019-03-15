@@ -98,9 +98,9 @@ def get_sc_lonlat_test(starttime, endtime,res_in_days):
     
  psp.generate_positions(psp_time,'Sun','HEEQ')
  psp.change_units(astropy.units.AU)  
- psp_r, psp_lat_heeq, psp_lon_heeq=cart2sphere(psp.x,psp.y,psp.z)
+ psp_r, psp_lat, psp_lon=cart2sphere(psp.x,psp.y,psp.z)
  
- return psp_r, psp_lat_heeq, psp_lon_heeq
+ return psp_r, psp_lat, psp_lon
 
 
 ##################################################### MAIN ###############################
@@ -110,13 +110,22 @@ def get_sc_lonlat_test(starttime, endtime,res_in_days):
 
 start=time.time()
 
-res_in_days=1
+#res_in_days=0.5
+
+#frame='HCI'
+frame='HEEQ'
+
+plot_orbit=True
+
+
+
+print(frame)
 
 #1 hour res
 #res_in_days=1/24.
 
 #1min
-#res_in_days=1/1440.
+res_in_days=1/1440.
 
 if res_in_days < 0.2: high_res_mode=True
 else:high_res_mode=False
@@ -149,19 +158,12 @@ psp_time_num=mdates.date2num(psp_time)
 
 spice.furnish(spicedata.get_kernel('psp_pred'))
 psp=spice.Trajectory('SPP')
-psp.generate_positions(psp_time,'Sun','HEEQ')
+psp.generate_positions(psp_time,'Sun',frame)
+print('PSP pos')
+
 psp.change_units(astropy.units.AU)  
-[psp_r, psp_lat_heeq, psp_lon_heeq]=cart2sphere(psp.x,psp.y,psp.z)
-print('PSP HEEQ done')
-
-
-plt.figure(1, figsize=(12,9))
-plt.plot_date(psp_time,psp_r,'-', label='R')
-plt.plot_date(psp_time,psp_lat_heeq,'-',label='lat')
-plt.plot_date(psp_time,psp_lon_heeq,'-',label='lon')
-plt.title('PSP position HEEQ')
-plt.ylabel('AU / RAD')
-plt.legend()
+[psp_r, psp_lat, psp_lon]=cart2sphere(psp.x,psp.y,psp.z)
+print('PSP conv')
 
 
 ############################################## BepiColombo
@@ -176,18 +178,10 @@ bepi_time_num=mdates.date2num(bepi_time)
 
 spice.furnish(spicedata.get_kernel('bepi_pred'))
 bepi=spice.Trajectory('BEPICOLOMBO MPO') # or BEPICOLOMBO MMO
-bepi.generate_positions(bepi_time,'Sun','HEEQ')
+bepi.generate_positions(bepi_time,'Sun',frame)
 bepi.change_units(astropy.units.AU)  
-[bepi_r, bepi_lat_heeq, bepi_lon_heeq]=cart2sphere(bepi.x,bepi.y,bepi.z)
-print('Bepi HEEQ done')
-
-plt.figure(2, figsize=(12,9))
-plt.plot_date(bepi_time,bepi_r,'-', label='R')
-plt.plot_date(bepi_time,bepi_lat_heeq,'-',label='lat')
-plt.plot_date(bepi_time,bepi_lon_heeq,'-',label='lon')
-plt.title('bepi position HEEQ')
-plt.ylabel('AU / RAD')
-plt.legend()
+[bepi_r, bepi_lat, bepi_lon]=cart2sphere(bepi.x,bepi.y,bepi.z)
+print('Bepi')
 
 
 
@@ -203,18 +197,59 @@ solo_time_num=mdates.date2num(solo_time)
 
 spice.furnish(spicedata.get_kernel('solo_2020'))
 solo=spice.Trajectory('Solar Orbiter')
-solo.generate_positions(solo_time, 'Sun', 'HEEQ')
+solo.generate_positions(solo_time, 'Sun',frame)
 solo.change_units(astropy.units.AU)
-[solo_r, solo_lat_heeq, solo_lon_heeq]=cart2sphere(solo.x,solo.y,solo.z)
-print('Solo HEEQ done')
+[solo_r, solo_lat, solo_lon]=cart2sphere(solo.x,solo.y,solo.z)
+print('Solo')
+
+
+
+
+
+
+
+
+#save heeq positions 
+if high_res_mode:
+ pickle.dump([psp_time,psp_time_num,psp_r,psp_lon,psp_lat,bepi_time,bepi_time_num,bepi_r,bepi_lon,bepi_lat,solo_time,solo_time_num,solo_r,solo_lon,solo_lat], open( 'psp_solo_bepi_'+frame+'_1min.p', "wb" ) )
+ end=time.time()
+ print( 'generate position took time in seconds:', round((end-start),1) )
+ sys.exit()
+
+
+
+
+
+plt.figure(1, figsize=(12,9))
+plt.plot_date(psp_time,psp_r,'-', label='R')
+plt.plot_date(psp_time,psp_lat,'-',label='lat')
+plt.plot_date(psp_time,psp_lon,'-',label='lon')
+plt.ylabel('AU / RAD')
+plt.legend()
+
+
+
+
+plt.figure(2, figsize=(12,9))
+plt.plot_date(bepi_time,bepi_r,'-', label='R')
+plt.plot_date(bepi_time,bepi_lat,'-',label='lat')
+plt.plot_date(bepi_time,bepi_lon,'-',label='lon')
+plt.title('bepi position HEEQ')
+plt.ylabel('AU / RAD')
+plt.legend()
+
+
+
 
 plt.figure(3, figsize=(12,9))
 plt.plot_date(solo_time,solo_r,'-', label='R')
-plt.plot_date(solo_time,solo_lat_heeq,'-',label='lat')
-plt.plot_date(solo_time,solo_lon_heeq,'-',label='lon')
+plt.plot_date(solo_time,solo_lat,'-',label='lat')
+plt.plot_date(solo_time,solo_lon,'-',label='lon')
 plt.title('solo position HEEQ')
 plt.ylabel('AU / RAD')
 plt.legend()
+
+
 
 
 
@@ -230,14 +265,13 @@ plt.savefig('bepi_psp_solo_R.png')
 
 ##### Longitude all three
 plt.figure(5, figsize=(16,10))
-plt.plot_date(psp_time,psp_lon_heeq*180/np.pi,'-',label='PSP')
-plt.plot_date(bepi_time,bepi_lon_heeq*180/np.pi,'-',label='Bepi Colombo')
-plt.plot_date(solo_time,solo_lon_heeq*180/np.pi,'-',label='Solar Orbiter')
+plt.plot_date(psp_time,psp_lon*180/np.pi,'-',label='PSP')
+plt.plot_date(bepi_time,bepi_lon*180/np.pi,'-',label='Bepi Colombo')
+plt.plot_date(solo_time,solo_lon*180/np.pi,'-',label='Solar Orbiter')
 plt.legend()
-plt.title('HEE Longitude')
+plt.title(frame+' longitude')
 plt.ylabel('DEG')
-plt.savefig('bepi_psp_solo_longitude_HEEQ.png')
-
+plt.savefig('bepi_psp_solo_longitude_'+frame+'.png')
 
 
 
@@ -258,36 +292,36 @@ while starttime < endtime:
 earth_time_num=mdates.date2num(earth_time)     
 
 earth=spice.Trajectory('399')  #399 for Earth, not barycenter (because of moon)
-earth.generate_positions(earth_time,'Sun','HEEQ')
+earth.generate_positions(earth_time,'Sun',frame)
 earth.change_units(astropy.units.AU)  
-[earth_r, earth_lat_heeq, earth_lon_heeq]=cart2sphere(earth.x,earth.y,earth.z)
-print('Earth HEEQ')
+[earth_r, earth_lat, earth_lon]=cart2sphere(earth.x,earth.y,earth.z)
+print('Earth')
 
 ################ mercury
 merc_time_num=earth_time_num
 merc=spice.Trajectory('1')  #barycenter
-merc.generate_positions(earth_time,'Sun','HEEQ')  
+merc.generate_positions(earth_time,'Sun',frame)  
 merc.change_units(astropy.units.AU)  
-[merc_r, merc_lat_heeq, merc_lon_heeq]=cart2sphere(merc.x,merc.y,merc.z)
-print('merc HEEQ') 
+[merc_r, merc_lat, merc_lon]=cart2sphere(merc.x,merc.y,merc.z)
+print('merc') 
 
 ################# venus
 ven_time_num=earth_time_num
 ven=spice.Trajectory('2')  
-ven.generate_positions(earth_time,'Sun','HEEQ')  
+ven.generate_positions(earth_time,'Sun',frame)  
 ven.change_units(astropy.units.AU)  
-[ven_r, ven_lat_heeq, ven_lon_heeq]=cart2sphere(ven.x,ven.y,ven.z)
-print('venus HEEQ') 
+[ven_r, ven_lat, ven_lon]=cart2sphere(ven.x,ven.y,ven.z)
+print('venus') 
 
 
 ############### Mars
 
 mars_time_num=earth_time_num
 mars=spice.Trajectory('4')  
-mars.generate_positions(earth_time,'Sun','HEEQ')  
+mars.generate_positions(earth_time,'Sun',frame)  
 mars.change_units(astropy.units.AU)  
-[mars_r, mars_lat_heeq, mars_lon_heeq]=cart2sphere(mars.x,mars.y,mars.z)
-print('mars HEEQ') 
+[mars_r, mars_lat, mars_lon]=cart2sphere(mars.x,mars.y,mars.z)
+print('mars') 
 
 #############stereo-A
 #https://docs.heliopy.org/en/stable/data/spice.html
@@ -295,25 +329,25 @@ print('mars HEEQ')
 sta_time_num=earth_time_num
 spice.furnish(spicedata.get_kernel('stereo_a_pred'))
 sta=spice.Trajectory('-234')  
-sta.generate_positions(earth_time,'Sun','HEEQ')  
+sta.generate_positions(earth_time,'Sun',frame)  
 sta.change_units(astropy.units.AU)  
-[sta_r, sta_lat_heeq, sta_lon_heeq]=cart2sphere(sta.x,sta.y,sta.z)
-print('sta HEEQ') 
+[sta_r, sta_lat, sta_lon]=cart2sphere(sta.x,sta.y,sta.z)
+print('sta') 
 
 
 
 end=time.time()
-print( 'generate position in HEEQ took time in seconds:', round((end-start),1) )
+print( 'generate position took time in seconds:', round((end-start),1) )
 
 
 
 
 #save heeq positions 
 if high_res_mode:
- pickle.dump([psp_time,psp_time_num,psp_r,psp_lon_heeq,psp_lat_heeq,bepi_time,bepi_time_num,bepi_r,bepi_lon_heeq,bepi_lat_heeq,solo_time,solo_time_num,solo_r,solo_lon_heeq,solo_lat_heeq], open( "psp_solo_bepi_highres_heeq_1min.p", "wb" ) )
+ pickle.dump([psp_time,psp_time_num,psp_r,psp_lon,psp_lat,bepi_time,bepi_time_num,bepi_r,bepi_lon,bepi_lat,solo_time,solo_time_num,solo_r,solo_lon,solo_lat], open( 'psp_solo_bepi_'+frame+'_1min.p', "wb" ) )
  sys.exit()
 else: 
- pickle.dump([psp_time,psp_time_num,psp_r,psp_lon_heeq,psp_lat_heeq,bepi_time,bepi_time_num,bepi_r,bepi_lon_heeq,bepi_lat_heeq,solo_time,solo_time_num,solo_r,solo_lon_heeq,solo_lat_heeq], open( "psp_solo_bepi_lowres_heeq_12hours.p", "wb" ) )
+ pickle.dump([psp_time,psp_time_num,psp_r,psp_lon,psp_lat,bepi_time,bepi_time_num,bepi_r,bepi_lon,bepi_lat,solo_time,solo_time_num,solo_r,solo_lon,solo_lat], open( 'psp_solo_bepi_'+frame+'_12hours.p', "wb" ) )
  
 # load old
 #[psp_time,psp_time_num,psp_r_hee,psp_lon_hee,psp_lat_hee,bepi_time,bepi_time_num,bepi_r_hee,bepi_lon_hee,bepi_lat_hee,solo_time,solo_time_num,solo_r_hee,solo_lon_hee,solo_lat_hee]=pickle.load( open( "psp_solo_bepi_high_res_HEE_1min.p", "rb" ) )
@@ -353,7 +387,7 @@ plt.figure(6, figsize=(14,10), dpi=100, facecolor='w', edgecolor='w')
 
 
 fsize=10
-
+fadeind=int(90/res_in_days)
 
 #################################################### animation loop start
 
@@ -383,47 +417,47 @@ for k in np.arange(0,kend):
  symsize_spacecraft=40
 
  #plot all positions including text R lon lat for some 
- ax.scatter(ven_lon_heeq[earth_timeind], ven_r[earth_timeind]*np.cos(ven_lat_heeq[earth_timeind]), s=symsize_planet, c='orange', alpha=1,lw=0,zorder=3)
- ax.scatter(merc_lon_heeq[earth_timeind], merc_r[earth_timeind]*np.cos(merc_lat_heeq[earth_timeind]), s=symsize_planet, c='dimgrey', alpha=1,lw=0,zorder=3)
- ax.scatter(0, earth_r[earth_timeind]*np.cos(earth_lat_heeq[earth_timeind]), s=symsize_planet, c='mediumseagreen', alpha=1,lw=0,zorder=3)
- ax.scatter(sta_lon_heeq[earth_timeind], sta_r[earth_timeind]*np.cos(sta_lat_heeq[earth_timeind]), s=symsize_spacecraft, c='red', marker='s', alpha=1,lw=0,zorder=3)
- ax.scatter(mars_lon_heeq[earth_timeind], mars_r[earth_timeind]*np.cos(mars_lat_heeq[earth_timeind]), s=symsize_planet, c='orangered', alpha=1,lw=0,zorder=3)
+ ax.scatter(ven_lon[earth_timeind], ven_r[earth_timeind]*np.cos(ven_lat[earth_timeind]), s=symsize_planet, c='orange', alpha=1,lw=0,zorder=3)
+ ax.scatter(merc_lon[earth_timeind], merc_r[earth_timeind]*np.cos(merc_lat[earth_timeind]), s=symsize_planet, c='dimgrey', alpha=1,lw=0,zorder=3)
+ ax.scatter(earth_lon[earth_timeind], earth_r[earth_timeind]*np.cos(earth_lat[earth_timeind]), s=symsize_planet, c='mediumseagreen', alpha=1,lw=0,zorder=3)
+ ax.scatter(sta_lon[earth_timeind], sta_r[earth_timeind]*np.cos(sta_lat[earth_timeind]), s=symsize_spacecraft, c='red', marker='s', alpha=1,lw=0,zorder=3)
+ ax.scatter(mars_lon[earth_timeind], mars_r[earth_timeind]*np.cos(mars_lat[earth_timeind]), s=symsize_planet, c='orangered', alpha=1,lw=0,zorder=3)
  
- earth_text='Earth R / lon / lat: '+str(f'{earth_r[earth_timeind]:6.2f}')+str(f'{np.zeros(1)[0]:8.1f}')+str(f'{np.rad2deg(earth_lat_heeq[earth_timeind]):8.1f}')
+ earth_text='Earth R / lon / lat: '+str(f'{earth_r[earth_timeind]:6.2f}')+str(f'{np.zeros(1)[0]:8.1f}')+str(f'{np.rad2deg(earth_lat[earth_timeind]):8.1f}')
  f10=plt.figtext(0.01,0.9,earth_text, fontsize=fsize+2, ha='left')
  
- mars_text='Mars  R / lon / lat: '+str(f'{mars_r[earth_timeind]:6.2f}')+str(f'{np.rad2deg(mars_lon_heeq[earth_timeind]):8.1f}')+str(f'{np.rad2deg(mars_lat_heeq[earth_timeind]):8.1f}')
+ mars_text='Mars  R / lon / lat: '+str(f'{mars_r[earth_timeind]:6.2f}')+str(f'{np.rad2deg(mars_lon[earth_timeind]):8.1f}')+str(f'{np.rad2deg(mars_lat[earth_timeind]):8.1f}')
  f9=plt.figtext(0.01,0.86,mars_text, fontsize=fsize+2, ha='left')
 
- sta_text='STA   R / lon / lat: '+str(f'{sta_r[earth_timeind]:6.2f}')+str(f'{np.rad2deg(sta_lon_heeq[earth_timeind]):8.1f}')+str(f'{np.rad2deg(sta_lat_heeq[earth_timeind]):8.1f}')
+ sta_text='STA   R / lon / lat: '+str(f'{sta_r[earth_timeind]:6.2f}')+str(f'{np.rad2deg(sta_lon[earth_timeind]):8.1f}')+str(f'{np.rad2deg(sta_lat[earth_timeind]):8.1f}')
  f8=plt.figtext(0.01,0.82,sta_text, fontsize=fsize+2, ha='left')
 
 
- fadeind=int(60/res_in_days)
+
  
  if psp_timeind > 0:
-   ax.scatter(psp_lon_heeq[psp_timeind], psp_r[psp_timeind]*np.cos(psp_lat_heeq[psp_timeind]), s=symsize_spacecraft, c='black', marker='s', alpha=1,lw=0,zorder=3)
-   psp_text='PSP   R / lon / lat: '+str(f'{psp_r[psp_timeind]:6.2f}')+str(f'{np.rad2deg(psp_lon_heeq[psp_timeind]):8.1f}')+str(f'{np.rad2deg(psp_lat_heeq[psp_timeind]):8.1f}')
+   ax.scatter(psp_lon[psp_timeind], psp_r[psp_timeind]*np.cos(psp_lat[psp_timeind]), s=symsize_spacecraft, c='black', marker='s', alpha=1,lw=0,zorder=3)
+   psp_text='PSP   R / lon / lat: '+str(f'{psp_r[psp_timeind]:6.2f}')+str(f'{np.rad2deg(psp_lon[psp_timeind]):8.1f}')+str(f'{np.rad2deg(psp_lat[psp_timeind]):8.1f}')
    f5=plt.figtext(0.01,0.78,psp_text, fontsize=fsize+2, ha='left')
-   ax.plot(psp_lon_heeq[psp_timeind-fadeind:psp_timeind+fadeind], psp_r[psp_timeind-fadeind:psp_timeind+fadeind]*np.cos(psp_lat_heeq[psp_timeind-fadeind:psp_timeind+fadeind]), c='black', alpha=0.2,lw=1,zorder=3)
+   if plot_orbit: ax.plot(psp_lon[psp_timeind-fadeind:psp_timeind+fadeind], psp_r[psp_timeind-fadeind:psp_timeind+fadeind]*np.cos(psp_lat[psp_timeind-fadeind:psp_timeind+fadeind]), c='black', alpha=0.2,lw=1,zorder=3)
    #for rate in np.arange(10, -1, -1)*0.1:
    #  line.set_alpha(rate)
    #  plt.draw()
    
 
  if bepi_timeind > 0:
-   ax.scatter(bepi_lon_heeq[bepi_timeind], bepi_r[bepi_timeind]*np.cos(bepi_lat_heeq[bepi_timeind]), s=symsize_spacecraft, c='blue', marker='s', alpha=1,lw=0,zorder=3)
-   bepi_text='Bepi  R / lon / lat: '+str(f'{bepi_r[bepi_timeind]:6.2f}')+str(f'{np.rad2deg(bepi_lon_heeq[bepi_timeind]):8.1f}')+str(f'{np.rad2deg(bepi_lat_heeq[bepi_timeind]):8.1f}')
+   ax.scatter(bepi_lon[bepi_timeind], bepi_r[bepi_timeind]*np.cos(bepi_lat[bepi_timeind]), s=symsize_spacecraft, c='blue', marker='s', alpha=1,lw=0,zorder=3)
+   bepi_text='Bepi  R / lon / lat: '+str(f'{bepi_r[bepi_timeind]:6.2f}')+str(f'{np.rad2deg(bepi_lon[bepi_timeind]):8.1f}')+str(f'{np.rad2deg(bepi_lat[bepi_timeind]):8.1f}')
    f6=plt.figtext(0.01,0.74,bepi_text, fontsize=fsize+2, ha='left')
-   ax.plot(bepi_lon_heeq[bepi_timeind-fadeind:bepi_timeind+fadeind], bepi_r[bepi_timeind-fadeind:bepi_timeind+fadeind]*np.cos(bepi_lat_heeq[bepi_timeind-fadeind:bepi_timeind+fadeind]), c='blue', alpha=0.2,lw=1,zorder=3)
+   if plot_orbit: ax.plot(bepi_lon[bepi_timeind-fadeind:bepi_timeind+fadeind], bepi_r[bepi_timeind-fadeind:bepi_timeind+fadeind]*np.cos(bepi_lat[bepi_timeind-fadeind:bepi_timeind+fadeind]), c='blue', alpha=0.2,lw=1,zorder=3)
 
 
 
  if solo_timeind > 0:
-   ax.scatter(solo_lon_heeq[solo_timeind], solo_r[solo_timeind]*np.cos(solo_lat_heeq[solo_timeind]), s=symsize_spacecraft, c='green', marker='s', alpha=1,lw=0,zorder=3)
-   solo_text='SolO  R / lon / lat: '+str(f'{solo_r[solo_timeind]:6.2f}')+str(f'{np.rad2deg(solo_lon_heeq[solo_timeind]):8.1f}')+str(f'{np.rad2deg(solo_lat_heeq[solo_timeind]):8.1f}')
+   ax.scatter(solo_lon[solo_timeind], solo_r[solo_timeind]*np.cos(solo_lat[solo_timeind]), s=symsize_spacecraft, c='green', marker='s', alpha=1,lw=0,zorder=3)
+   solo_text='SolO  R / lon / lat: '+str(f'{solo_r[solo_timeind]:6.2f}')+str(f'{np.rad2deg(solo_lon[solo_timeind]):8.1f}')+str(f'{np.rad2deg(solo_lat[solo_timeind]):8.1f}')
    f7=plt.figtext(0.01,0.7,solo_text, fontsize=fsize+2, ha='left')
-   ax.plot(solo_lon_heeq[solo_timeind-fadeind:solo_timeind+fadeind], solo_r[solo_timeind-fadeind:solo_timeind+fadeind]*np.cos(solo_lat_heeq[solo_timeind-fadeind:solo_timeind+fadeind]), c='green', alpha=0.2,lw=1,zorder=3)
+   if plot_orbit: ax.plot(solo_lon[solo_timeind-fadeind:solo_timeind+fadeind], solo_r[solo_timeind-fadeind:solo_timeind+fadeind]*np.cos(solo_lat[solo_timeind-fadeind:solo_timeind+fadeind]), c='green', alpha=0.2,lw=1,zorder=3)
 
 
  #plot text for date extra so it does not move 
@@ -447,8 +481,8 @@ for k in np.arange(0,kend):
  plt.figtext(0.77-0.02,0.02,'Bepi Colombo', color='blue', ha='center')
  plt.figtext(0.9-0.02,0.02,'Solar Orbiter', color='green', ha='center')
 
- plt.suptitle('Spacecraft trajectories HEEQ 2D projection  2018-2025')	
- plt.figtext(0.53,0.0735,'HEEQ longitude', fontsize=fsize+5, ha='left')
+ plt.suptitle('Spacecraft trajectories '+frame+' 2D projection  2018-2025')	
+ plt.figtext(0.53,0.0735,frame+' longitude', fontsize=fsize+5, ha='left')
  #signature
  plt.figtext(0.97,0.01/2,r'$C. M\ddot{o}stl$', fontsize=fsize, ha='center') 
  
@@ -488,6 +522,9 @@ for k in np.arange(0,kend):
 print('anim done')
  
 os.system('/Users/chris/python/3DCORE/ffmpeg -r 60 -i /Users/chris/python/3DCORE/positions_animation/pos_anim_%05d.jpg -b 5000k -r 60 pos_anim.mp4 -y -loglevel quiet')
+os.system('/Users/chris/python/3DCORE/ffmpeg -r 30 -i /Users/chris/python/3DCORE/positions_animation/pos_anim_%05d.jpg -b 5000k -r 30 pos_anim.mp4 -y -loglevel quiet')
+
+
 #os.system('/Users/chris/python/3DCORE/ffmpeg -r 90 -i /Users/chris/python/3DCORE/positions_animation_flyby_high_res/pos_anim_%04d.jpg -b 5000k -r 90 pos_anim_flyby_high_res.mp4 -y -loglevel quiet')
 
 print('movie done')
