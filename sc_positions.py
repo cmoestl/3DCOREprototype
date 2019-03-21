@@ -114,21 +114,28 @@ start=time.time()
 frame='HEEQ'
 print(frame)
 
-
+#sidereal solar rotation rate
 if frame=='HCI': sun_rot=24.47
-
+#synodic
 if frame=='HEEQ': sun_rot=26.24
+
+
+#black background on or off
+back=True
+#back=False
 
 
 #animation settings
 plot_orbit=True
 #plot_orbit=False
-plot_parker=True
+#plot_parker=True
+plot_parker=False
+
 
 
 
 #Time resolution
-res_in_days=0.25#0.25
+res_in_days=0.25
 #res_in_days=1/1440. #1min
 
 if res_in_days < 0.1: high_res_mode=True
@@ -319,9 +326,6 @@ sta.change_units(astropy.units.AU)
 print('STEREO-A') 
 
 
-end=time.time()
-print( 'generate position took time in seconds:', round((end-start),1) )
-
 
 #save positions 
 if high_res_mode:
@@ -336,9 +340,11 @@ else:
  venus=np.rec.array([venus_time_num,venus_r,venus_lon,venus_lat, venus.x, venus.y,venus.z],dtype=[('time','f8'),('r','f8'),('lon','f8'),('lat','f8'),('x','f8'),('y','f8'),('z','f8')])
  mars=np.rec.array([mars_time_num,mars_r,mars_lon,mars_lat, mars.x, mars.y,mars.z],dtype=[('time','f8'),('r','f8'),('lon','f8'),('lat','f8'),('x','f8'),('y','f8'),('z','f8')])
  mercury=np.rec.array([mercury_time_num,mercury_r,mercury_lon,mercury_lat,mercury.x, mercury.y,mercury.z],dtype=[('time','f8'),('r','f8'),('lon','f8'),('lat','f8'),('x','f8'),('y','f8'),('z','f8')])
- pickle.dump([psp, bepi, solo, sta, earth, venus, mars, mercury,frame], open( 'positions_psp_solo_bepi_sta_planets_'+frame+'_12hours.p', "wb" ) )
+ pickle.dump([psp, bepi, solo, sta, earth, venus, mars, mercury,frame], open( 'positions_psp_solo_bepi_sta_planets_'+frame+'_6hours.p', "wb" ) )
  #load with [psp, bepi, solo, sta, earth, venus, mars, mercury,frame]=pickle.load( open( 'positions_psp_solo_bepi_sta_planets_HCI_6hours_2018_2025.p', "rb" ) )
  
+ 
+end=time.time()
 print( 'generate position took time in seconds:', round((end-start),1) )
 
 
@@ -355,7 +361,8 @@ print('make animation')
 
 #from psp start
 frame_time_num=mdates.date2num(sunpy.time.parse_time('2018-Aug-1 00:00:00'))
-kend=int(365/res_in_days*7.4)
+#kend=int(365/res_in_days*7.4)
+kend=10352 #until 2025 August 31
 
 #for testing
 #frame_time_num=mdates.date2num(sunpy.time.parse_time('2020-Aug-1 00:00:00'))
@@ -374,24 +381,59 @@ if high_res_mode:
 if os.path.isdir(outputdirectory) == False: os.mkdir(outputdirectory)
 
 sns.set_context('talk')
-sns.set_style('darkgrid')
+if not back: sns.set_style('darkgrid')
 #sns.set_style('whitegrid')
 
 
-plt.figure(6, figsize=(14,10), dpi=100, facecolor='w', edgecolor='w')
+
+sns.set_context('talk')
+if back: sns.set_style('white',{'grid.linestyle': ':', 'grid.color': '.2'})   
+#if back: sns.set_style('white')   
 
 
-fsize=10
-fadeind=int(80/res_in_days)
+
+
+if not back: fig=plt.figure(6, figsize=(19.5,11), dpi=100)
+if back: fig=plt.figure(6, figsize=(19.5,11), dpi=100, facecolor='black', edgecolor='black')
+
+
+fsize=15
+fadeind=int(60/res_in_days)
+
+
+
+symsize_planet=110
+symsize_spacecraft=80
+
+AUkm=149597870.7   
+
+#for parker spiral   
+theta=np.arange(0,np.deg2rad(180),0.01)
+
 
 #################################################### animation loop start
+
 
 
 
 for k in np.arange(0,kend):
 
 
- ax = plt.subplot(111,projection='polar') 
+ if not back: 
+  ax = plt.subplot(111,projection='polar',facecolor='white') 
+  backcolor='black'
+  psp_color='black'
+  bepi_color='blue'
+  solo_color='green'
+ if back: 
+  ax = plt.subplot(111,projection='polar',facecolor='black') 
+  backcolor='white'
+  psp_color='white'
+  bepi_color='skyblue'
+  solo_color='springgreen'
+  sta_color='salmon'
+  
+     
  frame_time_str=str(mdates.num2date(frame_time_num+k*res_in_days))
  print( 'current frame_time_num', frame_time_str, '     ',k)
 
@@ -409,66 +451,91 @@ for k in np.arange(0,kend):
  dct=frame_time_num+k*res_in_days-earth_time_num
  earth_timeind=np.argmin(abs(dct))
 
- symsize_planet=70
- symsize_spacecraft=40
-
  #plot all positions including text R lon lat for some 
- ax.scatter(venus_lon[earth_timeind], venus_r[earth_timeind]*np.cos(venus_lat[earth_timeind]), s=symsize_planet, c='orange', alpha=1,lw=0,zorder=3)
- ax.scatter(mercury_lon[earth_timeind], mercury_r[earth_timeind]*np.cos(mercury_lat[earth_timeind]), s=symsize_planet, c='dimgrey', alpha=1,lw=0,zorder=3)
- ax.scatter(earth_lon[earth_timeind], earth_r[earth_timeind]*np.cos(earth_lat[earth_timeind]), s=symsize_planet, c='mediumseagreen', alpha=1,lw=0,zorder=3)
- ax.scatter(sta_lon[earth_timeind], sta_r[earth_timeind]*np.cos(sta_lat[earth_timeind]), s=symsize_spacecraft, c='red', marker='s', alpha=1,lw=0,zorder=3)
- ax.scatter(mars_lon[earth_timeind], mars_r[earth_timeind]*np.cos(mars_lat[earth_timeind]), s=symsize_planet, c='orangered', alpha=1,lw=0,zorder=3)
+ if not back:
+  ax.scatter(venus_lon[earth_timeind], venus_r[earth_timeind]*np.cos(venus_lat[earth_timeind]), s=symsize_planet, c='orange', alpha=1,lw=0,zorder=3)
+  ax.scatter(mercury_lon[earth_timeind], mercury_r[earth_timeind]*np.cos(mercury_lat[earth_timeind]), s=symsize_planet, c='dimgrey', alpha=1,lw=0,zorder=3)
+  ax.scatter(earth_lon[earth_timeind], earth_r[earth_timeind]*np.cos(earth_lat[earth_timeind]), s=symsize_planet, c='mediumseagreen', alpha=1,lw=0,zorder=3)
+  ax.scatter(sta_lon[earth_timeind], sta_r[earth_timeind]*np.cos(sta_lat[earth_timeind]), s=symsize_spacecraft, c='red', marker='s', alpha=1,lw=0,zorder=3)
+  ax.scatter(mars_lon[earth_timeind], mars_r[earth_timeind]*np.cos(mars_lat[earth_timeind]), s=symsize_planet, c='orangered', alpha=1,lw=0,zorder=3)
+  plt.figtext(0.1-0.02,0.02,'Mercury', color='dimgrey', ha='center',fontsize=fsize+5)
+  plt.figtext(0.2-0.02	,0.02,'Venus', color='orange', ha='center',fontsize=fsize+5)
+  plt.figtext(0.3-0.02,0.02,'Earth', color='mediumseagreen', ha='center',fontsize=fsize+5)
+  plt.figtext(0.4-0.02,0.02,'Mars', color='orangered', ha='center',fontsize=fsize+5)
+  plt.figtext(0.5-0.02,0.02,'STEREO-A', color='red', ha='center',fontsize=fsize+5)
+  plt.figtext(0.65-0.02,0.02,'PSP', color='black', ha='center',fontsize=fsize+5)
+  plt.figtext(0.77-0.02,0.02,'Bepi Colombo', color='blue', ha='center',fontsize=fsize+5)
+  plt.figtext(0.9-0.02,0.02,'Solar Orbiter', color='green', ha='center',fontsize=fsize+5)
+
+
+ if back:
+  ax.scatter(venus_lon[earth_timeind], venus_r[earth_timeind]*np.cos(venus_lat[earth_timeind]), s=symsize_planet, c='orange', alpha=1,lw=0,zorder=3)
+  ax.scatter(mercury_lon[earth_timeind], mercury_r[earth_timeind]*np.cos(mercury_lat[earth_timeind]), s=symsize_planet, c='grey', alpha=1,lw=0,zorder=3)
+  ax.scatter(earth_lon[earth_timeind], earth_r[earth_timeind]*np.cos(earth_lat[earth_timeind]), s=symsize_planet, c='mediumseagreen', alpha=1,lw=0,zorder=3)
+  ax.scatter(sta_lon[earth_timeind], sta_r[earth_timeind]*np.cos(sta_lat[earth_timeind]), s=symsize_spacecraft, c=sta_color, marker='s', alpha=1,lw=0,zorder=3)
+  #ax.scatter(mars_lon[earth_timeind], mars_r[earth_timeind]*np.cos(mars_lat[earth_timeind]), s=symsize_planet, c='orangered', alpha=1,lw=0,zorder=3)
+  plt.figtext(0.9,0.9,'Mercury', color='grey', ha='center',fontsize=fsize+5)
+  plt.figtext(0.9,0.8,'Venus', color='orange', ha='center',fontsize=fsize+5)
+  plt.figtext(0.9,0.7,'Earth', color='mediumseagreen', ha='center',fontsize=fsize+5)
+  #plt.figtext(0.9,0.6,'Mars', color='orangered', ha='center',fontsize=fsize+5)
+  plt.figtext(0.9,0.6,'STEREO-A', color=sta_color, ha='center',fontsize=fsize+5)
+  plt.figtext(0.9,0.5,'Parker Solar Probe', color=psp_color, ha='center',fontsize=fsize+5)
+  plt.figtext(0.9,0.4,'Bepi Colombo', color=bepi_color, ha='center',fontsize=fsize+5)
+  plt.figtext(0.9,0.3,'Solar Orbiter', color=solo_color, ha='center',fontsize=fsize+5)
+
+
+
+ #positions text
+
  
- f10=plt.figtext(0.06,0.93,  'R       lon        lat', fontsize=fsize+2, ha='left')
- earth_text='Earth: '+str(f'{earth_r[earth_timeind]:6.2f}')+str(f'{np.rad2deg(earth_lon[earth_timeind]):8.1f}')+str(f'{np.rad2deg(earth_lat[earth_timeind]):8.1f}')
- f10=plt.figtext(0.01,0.9,earth_text, fontsize=fsize+2, ha='left')
+ f10=plt.figtext(0.01,0.93,'              R       lon        lat', fontsize=fsize+2, ha='left',color=backcolor)
+ if frame=='HEEQ': earth_text='Earth: '+str(f'{earth_r[earth_timeind]:6.2f}')+str(f'{0.0:8.1f}')+str(f'{np.rad2deg(earth_lat[earth_timeind]):8.1f}')
+ else: earth_text='Earth: '+str(f'{earth_r[earth_timeind]:6.2f}')+str(f'{np.rad2deg(earth_lon[earth_timeind]):8.1f}')+str(f'{np.rad2deg(earth_lat[earth_timeind]):8.1f}')
+
+ f10=plt.figtext(0.01,0.9,earth_text, fontsize=fsize+2, ha='left',color=backcolor)
  
  mars_text='Mars:  '+str(f'{mars_r[earth_timeind]:6.2f}')+str(f'{np.rad2deg(mars_lon[earth_timeind]):8.1f}')+str(f'{np.rad2deg(mars_lat[earth_timeind]):8.1f}')
- f9=plt.figtext(0.01,0.86,mars_text, fontsize=fsize+2, ha='left')
+ f9=plt.figtext(0.01,0.86,mars_text, fontsize=fsize+2, ha='left',color=backcolor)
 
  sta_text='STA:   '+str(f'{sta_r[earth_timeind]:6.2f}')+str(f'{np.rad2deg(sta_lon[earth_timeind]):8.1f}')+str(f'{np.rad2deg(sta_lat[earth_timeind]):8.1f}')
- f8=plt.figtext(0.01,0.82,sta_text, fontsize=fsize+2, ha='left')
+ f8=plt.figtext(0.01,0.82,sta_text, fontsize=fsize+2, ha='left',color=backcolor)
 
-
-
- 
+ #position and text 
  if psp_timeind > 0:
-   ax.scatter(psp_lon[psp_timeind], psp_r[psp_timeind]*np.cos(psp_lat[psp_timeind]), s=symsize_spacecraft, c='black', marker='s', alpha=1,lw=0,zorder=3)
+   #plot trajectorie
+   ax.scatter(psp_lon[psp_timeind], psp_r[psp_timeind]*np.cos(psp_lat[psp_timeind]), s=symsize_spacecraft, c=psp_color, marker='s', alpha=1,lw=0,zorder=3)
+   #plot positiona as text
    psp_text='PSP:   '+str(f'{psp_r[psp_timeind]:6.2f}')+str(f'{np.rad2deg(psp_lon[psp_timeind]):8.1f}')+str(f'{np.rad2deg(psp_lat[psp_timeind]):8.1f}')
-   f5=plt.figtext(0.01,0.78,psp_text, fontsize=fsize+2, ha='left')
-   if plot_orbit: ax.plot(psp_lon[psp_timeind-fadeind:psp_timeind+fadeind], psp_r[psp_timeind-fadeind:psp_timeind+fadeind]*np.cos(psp_lat[psp_timeind-fadeind:psp_timeind+fadeind]), c='black', alpha=0.4,lw=1,zorder=3)
-   #for rate in np.arange(10, -1, -1)*0.1:
-   #  line.set_alpha(rate)
-   #  plt.draw()
+   f5=plt.figtext(0.01,0.78,psp_text, fontsize=fsize+2, ha='left',color=backcolor)
+   if plot_orbit: ax.plot(psp_lon[psp_timeind-fadeind:psp_timeind+fadeind], psp_r[psp_timeind-fadeind:psp_timeind+fadeind]*np.cos(psp_lat[psp_timeind-fadeind:psp_timeind+fadeind]), c=psp_color, alpha=0.6,lw=1,zorder=3)
    
 
  if bepi_timeind > 0:
-   ax.scatter(bepi_lon[bepi_timeind], bepi_r[bepi_timeind]*np.cos(bepi_lat[bepi_timeind]), s=symsize_spacecraft, c='blue', marker='s', alpha=1,lw=0,zorder=3)
+   ax.scatter(bepi_lon[bepi_timeind], bepi_r[bepi_timeind]*np.cos(bepi_lat[bepi_timeind]), s=symsize_spacecraft, c=bepi_color, marker='s', alpha=1,lw=0,zorder=3)
    bepi_text='Bepi:   '+str(f'{bepi_r[bepi_timeind]:6.2f}')+str(f'{np.rad2deg(bepi_lon[bepi_timeind]):8.1f}')+str(f'{np.rad2deg(bepi_lat[bepi_timeind]):8.1f}')
-   f6=plt.figtext(0.01,0.74,bepi_text, fontsize=fsize+2, ha='left')
-   if plot_orbit: ax.plot(bepi_lon[bepi_timeind-fadeind:bepi_timeind+fadeind], bepi_r[bepi_timeind-fadeind:bepi_timeind+fadeind]*np.cos(bepi_lat[bepi_timeind-fadeind:bepi_timeind+fadeind]), c='blue', alpha=0.4,lw=1,zorder=3)
+   f6=plt.figtext(0.01,0.74,bepi_text, fontsize=fsize+2, ha='left',color=backcolor)
+   if plot_orbit: ax.plot(bepi_lon[bepi_timeind-fadeind:bepi_timeind+fadeind], bepi_r[bepi_timeind-fadeind:bepi_timeind+fadeind]*np.cos(bepi_lat[bepi_timeind-fadeind:bepi_timeind+fadeind]), c=bepi_color, alpha=0.6,lw=1,zorder=3)
 
 
 
  if solo_timeind > 0:
-   ax.scatter(solo_lon[solo_timeind], solo_r[solo_timeind]*np.cos(solo_lat[solo_timeind]), s=symsize_spacecraft, c='green', marker='s', alpha=1,lw=0,zorder=3)
+   ax.scatter(solo_lon[solo_timeind], solo_r[solo_timeind]*np.cos(solo_lat[solo_timeind]), s=symsize_spacecraft, c=solo_color, marker='s', alpha=1,lw=0,zorder=3)
    solo_text='SolO:  '+str(f'{solo_r[solo_timeind]:6.2f}')+str(f'{np.rad2deg(solo_lon[solo_timeind]):8.1f}')+str(f'{np.rad2deg(solo_lat[solo_timeind]):8.1f}')
-   f7=plt.figtext(0.01,0.7,solo_text, fontsize=fsize+2, ha='left')
-   if plot_orbit: ax.plot(solo_lon[solo_timeind-fadeind:solo_timeind+fadeind], solo_r[solo_timeind-fadeind:solo_timeind+fadeind]*np.cos(solo_lat[solo_timeind-fadeind:solo_timeind+fadeind]), c='green', alpha=0.4,lw=1,zorder=3)
+   f7=plt.figtext(0.01,0.7,solo_text, fontsize=fsize+2, ha='left',color=backcolor)
+   if plot_orbit: ax.plot(solo_lon[solo_timeind-fadeind:solo_timeind+fadeind], solo_r[solo_timeind-fadeind:solo_timeind+fadeind]*np.cos(solo_lat[solo_timeind-fadeind:solo_timeind+fadeind]), c=solo_color, alpha=0.6,lw=1,zorder=3)
 
 
 
  if plot_parker:
-  AUkm=149597870.7
   for p in np.arange(0,6):
    #parker spiral
-   theta=np.arange(0,np.deg2rad(180),0.01)
    #sidereal rotation
    omega=2*np.pi/(sun_rot*60*60*24) #solar rotation in seconds
    v=400/AUkm #km/s
    r0=695000/AUkm
    r=v/omega*theta+r0*7
-   ax.plot(-theta+np.deg2rad(0+(360/24.47)*res_in_days*k+360/6*p), r, alpha=0.4, lw=0.5,color='grey',zorder=2)
+   if not back: ax.plot(-theta+np.deg2rad(0+(360/24.47)*res_in_days*k+360/6*p), r, alpha=0.4, lw=0.5,color='grey',zorder=2)
+   if back: ax.plot(-theta+np.deg2rad(0+(360/24.47)*res_in_days*k+360/6*p), r, alpha=0.7, lw=0.5,color='grey',zorder=2)
  
  
  
@@ -479,45 +546,43 @@ for k in np.arange(0,kend):
 
  #plot text for date extra so it does not move 
  #year
- f1=plt.figtext(0.47,0.85,frame_time_str[0:4], fontsize=13, ha='center')
+ f1=plt.figtext(0.67,0.03,frame_time_str[0:4],  ha='center',color=backcolor,fontsize=fsize+6)
  #month
- f2=plt.figtext(0.51,0.85,frame_time_str[5:7], fontsize=13, ha='center')
+ f2=plt.figtext(0.67+0.04,0.03,frame_time_str[5:7], ha='center',color=backcolor,fontsize=fsize+6)
  #day
- f3=plt.figtext(0.54,0.85,frame_time_str[8:10], fontsize=13, ha='center')
+ f3=plt.figtext(0.67+0.08,0.03,frame_time_str[8:10], ha='center',color=backcolor,fontsize=fsize+6)
  #hours
- f4=plt.figtext(0.57,0.85,frame_time_str[11:13], fontsize=13, ha='center')
+ f4=plt.figtext(0.67+0.12,0.03,frame_time_str[11:13], ha='center',color=backcolor,fontsize=fsize+6)
 
 
 
- plt.figtext(0.1-0.02,0.02,'mercury', color='dimgrey', ha='center')
- plt.figtext(0.2-0.02	,0.02,'venusus', color='orange', ha='center')
- plt.figtext(0.3-0.02,0.02,'Earth', color='mediumseagreen', ha='center')
- plt.figtext(0.4-0.02,0.02,'Mars', color='orangered', ha='center')
- plt.figtext(0.5-0.02,0.02,'STEREO-A', color='red', ha='center')
- plt.figtext(0.65-0.02,0.02,'PSP', color='black', ha='center')
- plt.figtext(0.77-0.02,0.02,'Bepi Colombo', color='blue', ha='center')
- plt.figtext(0.9-0.02,0.02,'Solar Orbiter', color='green', ha='center')
 
- plt.suptitle('Spacecraft trajectories '+frame+' 2D projection  2018-2025')	
- plt.figtext(0.53,0.0735,frame+' longitude', fontsize=fsize+5, ha='left')
+ #plt.suptitle('Spacecraft trajectories '+frame+' 2D projection  2018-2025')	
+ plt.figtext(0.02, 0.03,'Spacecraft trajectories '+frame+' 2D projection 2018-2025', fontsize=fsize+6, ha='left',color=backcolor)	
+
+ #plt.figtext(0.53,0.0735,frame+' longitude', fontsize=fsize+5, ha='left')
  #signature
- plt.figtext(0.97,0.01/2,r'$C. M\ddot{o}stl$', fontsize=fsize, ha='center') 
+ plt.figtext(0.97,0.01/2,r'$C. M\ddot{o}stl$', fontsize=fsize+1, ha='center',color=backcolor) 
  
  #set axes
 
  ax.set_theta_zero_location('S')
- plt.thetagrids(range(0,360,45),(u'0\u00b0',u'45\u00b0',u'90\u00b0',u'135\u00b0',u'+/- 180\u00b0',u'- 135\u00b0',u'- 90\u00b0',u'- 45\u00b0'), fmt='%d',fontsize=fsize+5)
+ plt.thetagrids(range(0,360,45),(u'0\u00b0 HEEQ longitude',u'45\u00b0',u'90\u00b0',u'135\u00b0',u'+/- 180\u00b0',u'- 135\u00b0',u'- 90\u00b0',u'- 45\u00b0'), fmt='%d',fontsize=fsize+2,color=backcolor, alpha=0.8)
  #plt.rgrids((0.25,0.5,0.75, 1.0,1.25, 1.5),('0.25','0.5','0.75','1.0','1.25','1.5  AU'),angle=125, fontsize=fsize)
- plt.rgrids((0.10,0.39,0.72,1.00,1.52),('0.10','0.39','0.72','1.0','1.52 AU'),angle=125, fontsize=fsize)
- ax.set_ylim(0, 1.75)
+ plt.rgrids((0.10,0.39,0.72,1.00,1.52),('0.10','0.39','0.72','1.0','1.52 AU'),angle=125, fontsize=fsize,alpha=0.8, color=backcolor)
+ 
+ #ax.set_ylim(0, 1.75) with Mars
+ ax.set_ylim(0, 1.2) 
  
  #Sun
  ax.scatter(0,0,s=100,c='yellow',alpha=1, edgecolors='black', linewidth=0.3)
 
+ plt.tight_layout()
+
  #save figure
  framestr = '%05i' % (k)  
  filename=outputdirectory+'/pos_anim_'+framestr+'.jpg'  
- plt.savefig(filename)
+ plt.savefig(filename,dpi=100,facecolor=fig.get_facecolor(), edgecolor='none')
 
 
 
@@ -540,7 +605,7 @@ for k in np.arange(0,kend):
 print('anim done')
  
 #os.system('/Users/chris/python/3DCORE/ffmpeg -r 60 -i /Users/chris/python/3DCORE/positions_animation/pos_anim_%05d.jpg -b 5000k -r 60 pos_anim.mp4 -y -loglevel quiet')
-os.system('/Users/chris/python/3DCORE/ffmpeg -r 30 -i /Users/chris/python/3DCORE/positions_animation/pos_anim_%05d.jpg -b 5000k -r 30 pos_anim.mp4 -y -loglevel quiet')
+os.system('/Users/chris/python/3DCORE/ffmpeg -r 40 -i /Users/chris/python/3DCORE/positions_animation/pos_anim_%05d.jpg -b 5000k -r 40 pos_anim.mp4 -y -loglevel quiet')
 
 
 #os.system('/Users/chris/python/3DCORE/ffmpeg -r 90 -i /Users/chris/python/3DCORE/positions_animation_flyby_high_res/pos_anim_%04d.jpg -b 5000k -r 90 pos_anim_flyby_high_res.mp4 -y -loglevel quiet')
