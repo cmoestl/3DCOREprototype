@@ -9,7 +9,7 @@
 #change path for ffmpeg for animation production at the very end
 
 ## MIT LICENSE
-## Copyright 2018, Christian Moestl 
+## Copyright 2019, Christian Moestl 
 ## Permission is hereby granted, free of charge, to any person obtaining a copy of this 
 ## software and associated documentation files (the "Software"), to deal in the Software
 ## without restriction, including without limitation the rights to use, copy, modify, 
@@ -110,8 +110,8 @@ start=time.time()
 
 
 #Coordinate System
-#frame='HCI'
-frame='HEEQ'
+frame='HCI'
+#frame='HEEQ'
 print(frame)
 
 #sidereal solar rotation rate
@@ -121,8 +121,8 @@ if frame=='HEEQ': sun_rot=26.24
 
 
 #black background on or off
-back=True
-#back=False
+#back=True
+back=False
 
 
 #animation settings
@@ -135,10 +135,12 @@ plot_parker=False
 
 
 #Time resolution
-res_in_days=0.25
+res_in_days=1/4.
+
+#flyby res_in_days=1/12.
 #res_in_days=1/1440. #1min
 
-if res_in_days < 0.1: high_res_mode=True
+if res_in_days < 0.01: high_res_mode=True
 else:high_res_mode=False
 
 outputdirectory='positions_animation'
@@ -368,6 +370,12 @@ kend=10352 #until 2025 August 31
 #frame_time_num=mdates.date2num(sunpy.time.parse_time('2020-Aug-1 00:00:00'))
 #kend=150
 
+
+#flyby April 2019
+#frame_time_num=mdates.date2num(sunpy.time.parse_time('2019-Mar-25 00:00:00'))
+#kend=280
+
+
 #frame_time_num=mdates.date2num(sunpy.time.parse_time('2021-Apr-29 00:00:00'))
 #frame_time_num=mdates.date2num(sunpy.time.parse_time('2020-Jun-03 00:00:00'))
 #frame_time_num=mdates.date2num(sunpy.time.parse_time('2024-Dec-25 18:00:00'))
@@ -381,20 +389,12 @@ if high_res_mode:
 if os.path.isdir(outputdirectory) == False: os.mkdir(outputdirectory)
 
 sns.set_context('talk')
-if not back: sns.set_style('darkgrid')
-#sns.set_style('whitegrid')
+if back: sns.set_style('white',{'grid.linestyle': ':', 'grid.color': '.35'})   
+if not back: sns.set_style('darkgrid'),#{'grid.linestyle': ':', 'grid.color': '.35'}) 
 
 
-
-sns.set_context('talk')
-if back: sns.set_style('white',{'grid.linestyle': ':', 'grid.color': '.2'})   
-#if back: sns.set_style('white')   
-
-
-
-
-if not back: fig=plt.figure(6, figsize=(19.5,11), dpi=100)
 if back: fig=plt.figure(6, figsize=(19.5,11), dpi=100, facecolor='black', edgecolor='black')
+if not back: fig=plt.figure(6, figsize=(19.5,11), dpi=100)
 
 
 fsize=15
@@ -420,7 +420,7 @@ for k in np.arange(0,kend):
 
 
  if not back: 
-  ax = plt.subplot(111,projection='polar',facecolor='white') 
+  ax = plt.subplot(111,projection='polar') 
   backcolor='black'
   psp_color='black'
   bepi_color='blue'
@@ -433,6 +433,7 @@ for k in np.arange(0,kend):
   solo_color='springgreen'
   sta_color='salmon'
   
+
      
  frame_time_str=str(mdates.num2date(frame_time_num+k*res_in_days))
  print( 'current frame_time_num', frame_time_str, '     ',k)
@@ -458,14 +459,14 @@ for k in np.arange(0,kend):
   ax.scatter(earth_lon[earth_timeind], earth_r[earth_timeind]*np.cos(earth_lat[earth_timeind]), s=symsize_planet, c='mediumseagreen', alpha=1,lw=0,zorder=3)
   ax.scatter(sta_lon[earth_timeind], sta_r[earth_timeind]*np.cos(sta_lat[earth_timeind]), s=symsize_spacecraft, c='red', marker='s', alpha=1,lw=0,zorder=3)
   ax.scatter(mars_lon[earth_timeind], mars_r[earth_timeind]*np.cos(mars_lat[earth_timeind]), s=symsize_planet, c='orangered', alpha=1,lw=0,zorder=3)
-  plt.figtext(0.1-0.02,0.02,'Mercury', color='dimgrey', ha='center',fontsize=fsize+5)
-  plt.figtext(0.2-0.02	,0.02,'Venus', color='orange', ha='center',fontsize=fsize+5)
-  plt.figtext(0.3-0.02,0.02,'Earth', color='mediumseagreen', ha='center',fontsize=fsize+5)
-  plt.figtext(0.4-0.02,0.02,'Mars', color='orangered', ha='center',fontsize=fsize+5)
-  plt.figtext(0.5-0.02,0.02,'STEREO-A', color='red', ha='center',fontsize=fsize+5)
-  plt.figtext(0.65-0.02,0.02,'PSP', color='black', ha='center',fontsize=fsize+5)
-  plt.figtext(0.77-0.02,0.02,'Bepi Colombo', color='blue', ha='center',fontsize=fsize+5)
-  plt.figtext(0.9-0.02,0.02,'Solar Orbiter', color='green', ha='center',fontsize=fsize+5)
+  plt.figtext(0.9,0.9,'Mercury', color='dimgrey', ha='center',fontsize=fsize+5)
+  plt.figtext(0.9	,0.8,'Venus', color='orange', ha='center',fontsize=fsize+5)
+  plt.figtext(0.9,0.7,'Earth', color='mediumseagreen', ha='center',fontsize=fsize+5)
+  #plt.figtext(0.9,0.7,'Mars', color='orangered', ha='center',fontsize=fsize+5)
+  plt.figtext(0.9,0.6,'STEREO-A', color='red', ha='center',fontsize=fsize+5)
+  plt.figtext(0.9,0.5,'Parker Solar Probe', color='black', ha='center',fontsize=fsize+5)
+  plt.figtext(0.9,0.4,'Bepi Colombo', color='blue', ha='center',fontsize=fsize+5)
+  plt.figtext(0.9,0.3,'Solar Orbiter', color='green', ha='center',fontsize=fsize+5)
 
 
  if back:
@@ -535,9 +536,7 @@ for k in np.arange(0,kend):
    r0=695000/AUkm
    r=v/omega*theta+r0*7
    if not back: ax.plot(-theta+np.deg2rad(0+(360/24.47)*res_in_days*k+360/6*p), r, alpha=0.4, lw=0.5,color='grey',zorder=2)
-   if back: ax.plot(-theta+np.deg2rad(0+(360/24.47)*res_in_days*k+360/6*p), r, alpha=0.7, lw=0.5,color='grey',zorder=2)
- 
- 
+   if back: ax.plot(-theta+np.deg2rad(0+(360/24.47)*res_in_days*k+360/6*p), r, alpha=0.7, lw=0.7,color='grey',zorder=2)
  
  
  
@@ -555,22 +554,18 @@ for k in np.arange(0,kend):
  f4=plt.figtext(0.67+0.12,0.03,frame_time_str[11:13], ha='center',color=backcolor,fontsize=fsize+6)
 
 
+ plt.figtext(0.02, 0.03,'Spacecraft trajectories '+frame+' 2D projection', fontsize=fsize+6, ha='left',color=backcolor)	
 
 
- #plt.suptitle('Spacecraft trajectories '+frame+' 2D projection  2018-2025')	
- plt.figtext(0.02, 0.03,'Spacecraft trajectories '+frame+' 2D projection 2018-2025', fontsize=fsize+6, ha='left',color=backcolor)	
-
- #plt.figtext(0.53,0.0735,frame+' longitude', fontsize=fsize+5, ha='left')
  #signature
  plt.figtext(0.97,0.01/2,r'$C. M\ddot{o}stl$', fontsize=fsize+1, ha='center',color=backcolor) 
  
  #set axes
 
  ax.set_theta_zero_location('S')
- plt.thetagrids(range(0,360,45),(u'0\u00b0 HEEQ longitude',u'45\u00b0',u'90\u00b0',u'135\u00b0',u'+/- 180\u00b0',u'- 135\u00b0',u'- 90\u00b0',u'- 45\u00b0'), fmt='%d',fontsize=fsize+2,color=backcolor, alpha=0.8)
- #plt.rgrids((0.25,0.5,0.75, 1.0,1.25, 1.5),('0.25','0.5','0.75','1.0','1.25','1.5  AU'),angle=125, fontsize=fsize)
- plt.rgrids((0.10,0.39,0.72,1.00,1.52),('0.10','0.39','0.72','1.0','1.52 AU'),angle=125, fontsize=fsize,alpha=0.8, color=backcolor)
+ plt.thetagrids(range(0,360,45),(u'0\u00b0 '+frame+' longitude',u'45\u00b0',u'90\u00b0',u'135\u00b0',u'+/- 180\u00b0',u'- 135\u00b0',u'- 90\u00b0',u'- 45\u00b0'), fmt='%d',fontsize=fsize+2,color=backcolor, alpha=0.9)
  
+ plt.rgrids((0.10,0.39,0.72,1.00,1.52),('0.10','0.39','0.72','1.0','1.52 AU'),angle=125, fontsize=fsize,alpha=0.9, color=backcolor)
  #ax.set_ylim(0, 1.75) with Mars
  ax.set_ylim(0, 1.2) 
  
@@ -583,20 +578,6 @@ for k in np.arange(0,kend):
  framestr = '%05i' % (k)  
  filename=outputdirectory+'/pos_anim_'+framestr+'.jpg'  
  plt.savefig(filename,dpi=100,facecolor=fig.get_facecolor(), edgecolor='none')
-
-
-
- #f1.set_visible(False)
- #f2.set_visible(False)
- #f3.set_visible(False)
- #f4.set_visible(False)
- #if psp_timeind > 0: f5.set_visible(False)
- #if bepi_timeind > 0: f6.set_visible(False)
- #if solo_timeind > 0: f7.set_visible(False)
- #f8.set_visible(False)
- #f9.set_visible(False)
- #f10.set_visible(False)
- #clear
  plt.clf()
 
   
@@ -606,6 +587,9 @@ print('anim done')
  
 #os.system('/Users/chris/python/3DCORE/ffmpeg -r 60 -i /Users/chris/python/3DCORE/positions_animation/pos_anim_%05d.jpg -b 5000k -r 60 pos_anim.mp4 -y -loglevel quiet')
 os.system('/Users/chris/python/3DCORE/ffmpeg -r 40 -i /Users/chris/python/3DCORE/positions_animation/pos_anim_%05d.jpg -b 5000k -r 40 pos_anim.mp4 -y -loglevel quiet')
+
+#for flybys
+#os.system('/Users/chris/python/3DCORE/ffmpeg -r 40 -i  pos_anim.mp4 -r 40 pos_anim.gif  -y -loglevel quiet')
 
 
 #os.system('/Users/chris/python/3DCORE/ffmpeg -r 90 -i /Users/chris/python/3DCORE/positions_animation_flyby_high_res/pos_anim_%04d.jpg -b 5000k -r 90 pos_anim_flyby_high_res.mp4 -y -loglevel quiet')
